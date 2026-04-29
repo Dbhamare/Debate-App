@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Debate App Logo">
+  <rect x="30" y="46" width="150" height="78" rx="39" fill="#ef523b" />
+  <g>
+    <rect x="100" y="94" width="118" height="104" rx="52" fill="#4f92d2" />
+    <path d="M100 198v16l16-16z" fill="#4f92d2" />
+  </g>
+  <path d="M100 94h66c14.5 0 27.6 5.9 37 15.5V165l-20-20h-83z" fill="#4b3441" opacity=".88" />
+</svg>

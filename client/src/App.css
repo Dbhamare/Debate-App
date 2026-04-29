@@ -1,0 +1,9 @@
+
+.new-message {
+  animation: pulseFade 1.5s ease-in-out;
+}
+.MuiList-root {overflow-anchor: none;}
+@keyframes pulseFade {
+  0% { background-color: #fffacd; }
+  100% { background-color: transparent; }
+}
