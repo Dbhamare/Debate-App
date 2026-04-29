@@ -1,11 +1,11 @@
+Open 2 terminals.
+
+1st terminal:
 cd server
 npm install
-
-cd ../client
-npm install
-
-cd server
 node src/server.js
 
+2nd terminal:
 cd client
+npm install
 npm run dev
