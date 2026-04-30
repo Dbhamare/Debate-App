@@ -7,6 +7,7 @@ const app = require('./app');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 const User = require('./models/User');
 const Debate = require('./models/Debate');
 
@@ -88,8 +89,12 @@ mongoose.connect(process.env.MONGO_URI)
 
 if (process.env.NODE_ENV === 'production') {
   const clientBuildPath = path.join(__dirname, '../../client/dist');
-  app.use(express.static(clientBuildPath));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(clientBuildPath, 'index.html'));
-  });
+  const clientIndexPath = path.join(clientBuildPath, 'index.html');
+  if (fs.existsSync(clientIndexPath)) {
+    app.use(express.static(clientBuildPath));
+    app.use((req, res, next) => {
+      if (req.path.startsWith('/api')) return next();
+      return res.sendFile(clientIndexPath);
+    });
+  }
 }
