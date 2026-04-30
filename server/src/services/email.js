@@ -1,6 +1,7 @@
 const nodemailer = require('nodemailer');
 
 let transporter = null;
+const RESEND_API_URL = 'https://api.resend.com/emails';
 
 function hasValue(value) {
   return String(value || '').trim() !== '';
@@ -46,6 +47,55 @@ function resolveFromAddress({ SMTP_HOST, SMTP_USER, SMTP_FROM, EMAIL_FROM }) {
   return configuredFrom;
 }
 
+function resolveApiFromAddress() {
+  const from = process.env.RESEND_FROM || process.env.EMAIL_FROM;
+  if (hasValue(from)) return from;
+  throw new Error('Email sender is not configured. Set RESEND_FROM or EMAIL_FROM.');
+}
+
+function buildMailOptions(to, subject, content, from) {
+  const isObjectContent = content && typeof content === 'object';
+  const htmlOrText = isObjectContent ? content.html || content.text || '' : content;
+  const isHtml = Boolean(isObjectContent ? content.html : /<[^>]+>/.test(htmlOrText || ''));
+
+  return {
+    from,
+    to,
+    subject,
+    ...(isHtml ? { html: isObjectContent ? content.html : htmlOrText } : { text: htmlOrText }),
+    ...(isObjectContent && content.text ? { text: content.text } : {}),
+  };
+}
+
+async function sendWithResend(mailOptions) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!hasValue(apiKey)) {
+    throw new Error('RESEND_API_KEY is not configured.');
+  }
+
+  const response = await fetch(RESEND_API_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: mailOptions.from,
+      to: Array.isArray(mailOptions.to) ? mailOptions.to : [mailOptions.to],
+      subject: mailOptions.subject,
+      ...(mailOptions.html ? { html: mailOptions.html } : {}),
+      ...(mailOptions.text ? { text: mailOptions.text } : {}),
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Resend email failed with ${response.status}: ${body}`);
+  }
+
+  return response.json();
+}
+
 function getTransporter() {
   if (transporter) return transporter;
 
@@ -86,18 +136,13 @@ function getTransporter() {
 }
 
 async function sendEmail(to, subject, content) {
+  if (hasValue(process.env.RESEND_API_KEY)) {
+    return sendWithResend(buildMailOptions(to, subject, content, resolveApiFromAddress()));
+  }
+
   const t = getTransporter();
-  const isObjectContent = content && typeof content === 'object';
-  const htmlOrText = isObjectContent ? content.html || content.text || '' : content;
-  const isHtml = Boolean(isObjectContent ? content.html : /<[^>]+>/.test(htmlOrText || ''));
-  const mailOptions = {
-    from: t._from,
-    to,
-    subject,
-    ...(isHtml ? { html: isObjectContent ? content.html : htmlOrText } : { text: htmlOrText }),
-    ...(isObjectContent && content.text ? { text: content.text } : {}),
-  };
+  const mailOptions = buildMailOptions(to, subject, content, t._from);
   return t.sendMail(mailOptions);
 }
 
-module.exports = { sendEmail, resolveFromAddress };
+module.exports = { sendEmail, resolveFromAddress, sendWithResend };
