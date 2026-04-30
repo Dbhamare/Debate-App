@@ -169,16 +169,25 @@ exports.forgotPassword = async (req, res) => {
 
   try {
     const email = String(req.body?.email || '').toLowerCase().trim();
-    const user = await User.findOne({ email }).select('+passwordResetTokenHash +passwordResetExpiresAt');
+    const user = await User.findOne({ email }).select('_id email').lean();
 
     if (!user) {
       return res.json(response);
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');
-    user.passwordResetTokenHash = hashResetToken(resetToken);
-    user.passwordResetExpiresAt = new Date(Date.now() + RESET_PASSWORD_TTL_MINUTES * 60 * 1000);
-    await user.save();
+    const tokenHash = hashResetToken(resetToken);
+    const expiresAt = new Date(Date.now() + RESET_PASSWORD_TTL_MINUTES * 60 * 1000);
+
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          passwordResetTokenHash: tokenHash,
+          passwordResetExpiresAt: expiresAt,
+        },
+      }
+    );
 
     const resetUrl = `${getClientOrigin(req)}/reset-password?token=${encodeURIComponent(resetToken)}`;
 
@@ -190,9 +199,15 @@ exports.forgotPassword = async (req, res) => {
         text: `Use this link to reset your password: ${resetUrl}\n\nThis link expires in ${RESET_PASSWORD_TTL_MINUTES} minutes. If you did not request it, you can ignore this email.`,
       });
     } catch (mailError) {
-      user.passwordResetTokenHash = '';
-      user.passwordResetExpiresAt = null;
-      await user.save().catch((saveError) => {
+      await User.updateOne(
+        { _id: user._id, passwordResetTokenHash: tokenHash },
+        {
+          $set: {
+            passwordResetTokenHash: '',
+            passwordResetExpiresAt: null,
+          },
+        }
+      ).catch((saveError) => {
         console.error('Failed to clear unsent reset token:', saveError);
       });
       throw mailError;
