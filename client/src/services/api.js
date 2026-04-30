@@ -1,9 +1,13 @@
 import axios from 'axios';
 
+const apiOrigin = (import.meta.env.VITE_API_ORIGIN || (import.meta.env.DEV ? 'http://localhost:5000' : '')).replace(/\/+$/, '');
+
+if (import.meta.env.PROD && !apiOrigin) {
+  console.error('Missing VITE_API_ORIGIN. Set it to the deployed backend URL before building the frontend.');
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_ORIGIN
-    ? `${import.meta.env.VITE_API_ORIGIN}/api`
-    : 'http://localhost:5000/api',
+  baseURL: `${apiOrigin}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
