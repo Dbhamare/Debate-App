@@ -5,15 +5,32 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
-const allowedOrigins = String(process.env.CORS_ORIGIN || 'http://localhost:5173')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean);
+
+function normalizeOrigin(origin = '') {
+  return String(origin).trim().replace(/\/+$/, '');
+}
+
+const allowedOrigins = new Set([
+  process.env.CORS_ORIGIN,
+  process.env.CLIENT_ORIGIN,
+  process.env.FRONTEND_ORIGIN,
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+]
+  .filter(Boolean)
+  .flatMap((value) => String(value).split(','))
+  .map(normalizeOrigin)
+  .filter(Boolean)
+);
+
+console.log('CORS allowed origins:', Array.from(allowedOrigins).join(', '));
 
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
-    if (allowedOrigins.includes(origin)) return cb(null, true);
+    const normalized = normalizeOrigin(origin);
+    if (allowedOrigins.has(normalized)) return cb(null, true);
+    console.warn(`CORS blocked origin: ${normalized}`);
     return cb(new Error('Not allowed by CORS'));
   }
 }));
