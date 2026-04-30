@@ -182,13 +182,21 @@ exports.forgotPassword = async (req, res) => {
 
     const resetUrl = `${getClientOrigin(req)}/reset-password?token=${encodeURIComponent(resetToken)}`;
 
-    await sendEmail(
-      user.email,
-      'Reset your Debate Platform password',
-      `<p>Use this link to reset your password:</p>
-       <p><a href="${resetUrl}">${resetUrl}</a></p>
-       <p>This link expires in ${RESET_PASSWORD_TTL_MINUTES} minutes. If you did not request it, you can ignore this email.</p>`
-    );
+    try {
+      await sendEmail(user.email, 'Reset your Debate Platform password', {
+        html: `<p>Use this link to reset your password:</p>
+          <p><a href="${resetUrl}">${resetUrl}</a></p>
+          <p>This link expires in ${RESET_PASSWORD_TTL_MINUTES} minutes. If you did not request it, you can ignore this email.</p>`,
+        text: `Use this link to reset your password: ${resetUrl}\n\nThis link expires in ${RESET_PASSWORD_TTL_MINUTES} minutes. If you did not request it, you can ignore this email.`,
+      });
+    } catch (mailError) {
+      user.passwordResetTokenHash = '';
+      user.passwordResetExpiresAt = null;
+      await user.save().catch((saveError) => {
+        console.error('Failed to clear unsent reset token:', saveError);
+      });
+      throw mailError;
+    }
 
     return res.json(response);
   } catch (err) {

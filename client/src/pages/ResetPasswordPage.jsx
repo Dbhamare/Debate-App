@@ -66,7 +66,10 @@ export default function ResetPasswordPage() {
         {!token && <Alert severity="error" sx={{ mb: 1.5 }}>Password reset link is missing or invalid.</Alert>}
 
         <PasswordField
+          id="reset-password-new"
+          name="newPassword"
           label="New Password"
+          autoComplete="new-password"
           required
           fullWidth
           margin="normal"
@@ -77,7 +80,10 @@ export default function ResetPasswordPage() {
         />
 
         <PasswordField
+          id="reset-password-confirm"
+          name="confirmPassword"
           label="Confirm Password"
+          autoComplete="new-password"
           required
           fullWidth
           margin="normal"

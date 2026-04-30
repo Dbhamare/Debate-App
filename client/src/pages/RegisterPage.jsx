@@ -143,7 +143,10 @@ export default function RegisterPage() {
         <Divider sx={{ mb: 2.5 }} />
 
         <TextField
+          id="register-name"
+          name="name"
           label="Name"
+          autoComplete="name"
           required
           fullWidth
           margin="normal"
@@ -153,8 +156,11 @@ export default function RegisterPage() {
 
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="center">
           <TextField
+            id="register-email"
+            name="email"
             label="Email"
             type="email"
+            autoComplete="email"
             required
             fullWidth
             margin="normal"
@@ -184,7 +190,10 @@ export default function RegisterPage() {
         {otpSent && !emailVerified && (
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="center">
             <TextField
+              id="register-email-code"
+              name="emailCode"
               label="Email code"
+              autoComplete="one-time-code"
               fullWidth
               margin="normal"
               value={otpCode}
@@ -203,7 +212,10 @@ export default function RegisterPage() {
         )}
 
         <PasswordField
+          id="register-password"
+          name="password"
           label="Password"
+          autoComplete="new-password"
           required
           fullWidth
           margin="normal"
@@ -212,7 +224,10 @@ export default function RegisterPage() {
         />
 
         <TextField
+          id="register-user-id"
+          name="userID"
           label="Student/Instructor ID"
+          autoComplete="off"
           required
           fullWidth
           margin="normal"

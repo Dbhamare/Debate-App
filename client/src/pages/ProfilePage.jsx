@@ -46,6 +46,11 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const load = async () => {
+      if (!token) {
+        navigate('/login', { replace: true });
+        return;
+      }
+
       try {
         const { data } = await api.get('/profile/me', { headers: { Authorization: `Bearer ${token}` } });
         const persisted = toProfileFields(data);
@@ -56,11 +61,17 @@ export default function ProfilePage() {
           ...persisted,
         }));
       } catch (e) {
+        if (e.response?.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          navigate('/login', { replace: true });
+          return;
+        }
         console.error('load profile failed', e);
       }
     };
     load();
-  }, [token]);
+  }, [token, navigate]);
 
   const onChange = (e) => {
     const { name, value } = e.target;
@@ -261,8 +272,10 @@ export default function ProfilePage() {
         <List disablePadding>
           <ListItem sx={{ px: 0, py: 1 }}>
             <TextField
+              id="profile-title"
               label="Title"
               name="title"
+              autoComplete="organization-title"
               value={form.title}
               onChange={onChange}
               fullWidth
@@ -271,16 +284,16 @@ export default function ProfilePage() {
           </ListItem>
 
           <ListItem sx={{ px: 0, py: 1 }}>
-            <TextField label="Full Name" name="name" value={form.name} onChange={onChange} fullWidth required />
+            <TextField id="profile-name" label="Full Name" name="name" autoComplete="name" value={form.name} onChange={onChange} fullWidth required />
           </ListItem>
 
           <ListItem sx={{ px: 0, py: 1, gap: 1, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' } }}>
-            <TextField label="Email" name="email" type="email" value={form.email} onChange={onChange} fullWidth required />
+            <TextField id="profile-email" label="Email" name="email" type="email" autoComplete="email" value={form.email} onChange={onChange} fullWidth required />
             <Button variant="outlined" onClick={requestEmailOtp}>Verify new email</Button>
           </ListItem>
 
           <ListItem sx={{ px: 0, py: 1 }}>
-            <TextField select label="Gender" name="gender" value={form.gender} onChange={onChange} fullWidth>
+            <TextField id="profile-gender" select label="Gender" name="gender" autoComplete="sex" value={form.gender} onChange={onChange} fullWidth>
               <MenuItem value="male">Male</MenuItem>
               <MenuItem value="female">Female</MenuItem>
               <MenuItem value="other">Other</MenuItem>
@@ -289,16 +302,16 @@ export default function ProfilePage() {
           </ListItem>
 
           <ListItem sx={{ px: 0, py: 1, gap: 1, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' } }}>
-            <TextField label="Mobile (+country code)" name="phone" value={form.phone} onChange={onChange} fullWidth placeholder="+447700900123" />
+            <TextField id="profile-phone" label="Mobile (+country code)" name="phone" autoComplete="tel" value={form.phone} onChange={onChange} fullWidth placeholder="+447700900123" />
             <Button variant="outlined" onClick={requestPhoneOtp}>Verify phone</Button>
           </ListItem>
 
           <ListItem sx={{ px: 0, py: 1 }}>
-            <TextField label="Course" name="course" value={form.course} onChange={onChange} fullWidth placeholder="MSc Computer Science" />
+            <TextField id="profile-course" label="Course" name="course" autoComplete="off" value={form.course} onChange={onChange} fullWidth placeholder="MSc Computer Science" />
           </ListItem>
 
           <ListItem sx={{ px: 0, py: 1 }}>
-            <TextField label="Bio" name="bio" value={form.bio} onChange={onChange} fullWidth multiline minRows={3} />
+            <TextField id="profile-bio" label="Bio" name="bio" autoComplete="off" value={form.bio} onChange={onChange} fullWidth multiline minRows={3} />
           </ListItem>
 
           <ListItem sx={{ px: 0, py: 1.5 }}>
@@ -310,11 +323,11 @@ export default function ProfilePage() {
           </ListItem>
 
           <ListItem sx={{ px: 0, py: 1 }}>
-            <PasswordField label="Old Password" name="oldPassword" value={form.oldPassword} onChange={onChange} fullWidth />
+            <PasswordField id="profile-old-password" label="Old Password" name="oldPassword" autoComplete="current-password" value={form.oldPassword} onChange={onChange} fullWidth />
           </ListItem>
 
           <ListItem sx={{ px: 0, py: 1, gap: 1, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' } }}>
-            <PasswordField label="New Password" name="newPassword" value={form.newPassword} onChange={onChange} fullWidth />
+            <PasswordField id="profile-new-password" label="New Password" name="newPassword" autoComplete="new-password" value={form.newPassword} onChange={onChange} fullWidth />
             <Button variant="outlined" onClick={requestPasswordOtp}>Send OTP to email</Button>
           </ListItem>
         </List>
@@ -357,8 +370,11 @@ export default function ProfilePage() {
             Enter the 6-digit code we just sent.
           </Typography>
           <TextField
+            id="profile-otp-code"
+            name="otpCode"
             autoFocus
             fullWidth
+            autoComplete="one-time-code"
             inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 6 }}
             placeholder="123456"
             value={otpCode}

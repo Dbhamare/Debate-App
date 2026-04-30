@@ -56,8 +56,11 @@ export default function LoginPage() {
         <Divider sx={{ mb: 2.5 }} />
         <form onSubmit={handleLogin}>
           <TextField
+            id="login-email"
+            name="email"
             label="Email"
             type="email"
+            autoComplete="email"
             required
             fullWidth
             margin="normal"
@@ -66,7 +69,10 @@ export default function LoginPage() {
           />
 
           <PasswordField
+            id="login-password"
+            name="password"
             label="Password"
+            autoComplete="current-password"
             required
             fullWidth
             margin="normal"
@@ -81,7 +87,10 @@ export default function LoginPage() {
           </Box>
 
           <TextField
+            id="login-user-id"
+            name="userID"
             label="Student/Instructor ID"
+            autoComplete="off"
             required
             fullWidth
             margin="normal"

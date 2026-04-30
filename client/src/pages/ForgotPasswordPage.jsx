@@ -47,8 +47,11 @@ export default function ForgotPasswordPage() {
         <Divider sx={{ mb: 2.5 }} />
 
         <TextField
+          id="forgot-password-email"
+          name="email"
           label="Email"
           type="email"
+          autoComplete="email"
           required
           fullWidth
           margin="normal"

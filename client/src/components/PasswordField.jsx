@@ -22,6 +22,7 @@ export default function PasswordField({ InputProps, disabled, ...props }) {
             <IconButton
               aria-label={visible ? 'Hide password' : 'Show password'}
               edge="end"
+              type="button"
               disabled={disabled}
               onClick={toggleVisibility}
               onMouseDown={(event) => event.preventDefault()}

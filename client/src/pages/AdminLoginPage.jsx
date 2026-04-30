@@ -43,8 +43,29 @@ export default function AdminLoginPage() {
         </Stack>
         <Divider sx={{ mb: 2.5 }} />
         <form onSubmit={handleLogin}>
-          <TextField label="Email" type="email" required fullWidth margin="normal" value={email} onChange={e => setEmail(e.target.value)} />
-          <PasswordField label="Password" required fullWidth margin="normal" value={password} onChange={e => setPassword(e.target.value)} />
+          <TextField
+            id="admin-login-email"
+            name="email"
+            label="Email"
+            type="email"
+            autoComplete="email"
+            required
+            fullWidth
+            margin="normal"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+          />
+          <PasswordField
+            id="admin-login-password"
+            name="password"
+            label="Password"
+            autoComplete="current-password"
+            required
+            fullWidth
+            margin="normal"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+          />
           <Box display="flex" justifyContent="flex-end">
             <Button type="button" size="small" onClick={() => navigate('/forgot-password')}>
               Forgot password?

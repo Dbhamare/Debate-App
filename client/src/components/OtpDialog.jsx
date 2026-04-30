@@ -13,8 +13,11 @@ export default function OtpDialog({ open, title = 'Enter OTP', onClose, onSubmit
           We’ve sent a 6-digit code. Please enter it below.
         </Typography>
         <TextField
+          id="otp-code"
+          name="otpCode"
           autoFocus
           fullWidth
+          autoComplete="one-time-code"
           inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 6 }}
           value={code}
           onChange={(e) => setCode(e.target.value)}
