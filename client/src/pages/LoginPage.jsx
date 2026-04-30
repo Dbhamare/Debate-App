@@ -16,8 +16,11 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
 
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanUserID = userID.replace(/\D/g, '');
+
     try {
-      const res = await api.post('/auth/login', { email, password, userID });
+      const res = await api.post('/auth/login', { email: cleanEmail, password, userID: Number(cleanUserID) });
 
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
@@ -68,6 +71,20 @@ export default function LoginPage() {
             onChange={e => setEmail(e.target.value)}
           />
 
+          <TextField
+            id="login-student-instructor-id"
+            name="studentInstructorIdNumber"
+            label="Student/Instructor ID"
+            autoComplete="one-time-code"
+            required
+            fullWidth
+            margin="normal"
+            value={userID}
+            onChange={(e) => setUserID(e.target.value.replace(/\D/g, ''))}
+            helperText="Enter your numeric registration User ID"
+            inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 3 }}
+          />
+
           <PasswordField
             id="login-password"
             name="password"
@@ -85,19 +102,6 @@ export default function LoginPage() {
               Forgot password?
             </Button>
           </Box>
-
-          <TextField
-            id="login-user-id"
-            name="userID"
-            label="Student/Instructor ID"
-            autoComplete="off"
-            required
-            fullWidth
-            margin="normal"
-            value={userID}
-            onChange={e => setUserID(e.target.value)}
-            helperText="Enter your unique registration User ID"
-          />
 
           {error && <Alert severity="error" sx={{ mt: 1.5 }}>{error}</Alert>}
 
