@@ -1,22 +1,10 @@
-import { Box, ButtonBase } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { getHomePath } from '../utils/navigation';
-
-export default function AppLogoButton({ size = 42, alt = 'Debate Platform logo', sx }) {
+export default function AppLogoButton({ size = 42 }) {
   const navigate = useNavigate();
-
   return (
-    <ButtonBase
-      aria-label="Go to Debate Platform home"
-      onClick={() => navigate(getHomePath())}
-      sx={{
-        borderRadius: 2,
-        display: 'inline-flex',
-        p: 0.35,
-        ...sx,
-      }}
-    >
-      <Box component="img" src="/app-logo.svg" alt={alt} sx={{ width: size, height: size, display: 'block' }} />
-    </ButtonBase>
+    <button onClick={() => navigate('/')} aria-label="Go home"
+      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 8, display: 'flex', alignItems: 'center' }}>
+      <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: size * 0.6, fontWeight: 900, color: 'var(--primary)', letterSpacing: '-0.02em' }}>R</span>
+    </button>
   );
 }

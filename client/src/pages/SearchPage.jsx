@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  Box, Typography, Paper, List, ListItemButton, ListItemText, Chip, Stack, Divider
-} from '@mui/material';
+import { motion } from 'framer-motion';
 import api from '../services/api';
+import Sidebar from '../components/Sidebar';
 
 function useQuery() {
   const { search } = useLocation();
@@ -15,12 +14,11 @@ export default function SearchPage() {
   const term = (q.get('q') || '').trim();
   const scope = q.get('scope') || 'debates';
   const joincode = q.get('joincode') || null;
-
   const nav = useNavigate();
-
   const [debates, setDebates] = useState([]);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const user = (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })();
 
   useEffect(() => {
     let cancel = false;
@@ -28,87 +26,70 @@ export default function SearchPage() {
       setLoading(true);
       try {
         if (scope === 'chat' && joincode) {
-          const { data } = await api.get(`/messages/search`, { params: { q: term, joincode } });
+          const { data } = await api.get('/messages/search', { params: { q: term, joincode } });
           if (!cancel) setMessages(Array.isArray(data) ? data : []);
         } else {
-          const { data } = await api.get(`/debates/search`, { params: { q: term } });
+          const { data } = await api.get('/debates/search', { params: { q: term } });
           if (!cancel) setDebates(Array.isArray(data) ? data : []);
         }
       } catch {
-        if (scope === 'chat') setMessages([]);
-        else setDebates([]);
-      } finally {
-        if (!cancel) setLoading(false);
-      }
+        if (!cancel) { if (scope === 'chat') setMessages([]); else setDebates([]); }
+      } finally { if (!cancel) setLoading(false); }
     };
     if (term) run();
     return () => { cancel = true; };
   }, [term, scope, joincode]);
 
   return (
-    <Box p={{ xs: 2, sm: 3, md: 4 }}>
-      <Typography variant="h5" gutterBottom>
-        Search results for “{term}”
-      </Typography>
-
-      {scope === 'chat' && joincode ? (
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="subtitle1" sx={{ mb: 1 }}>
-            Messages in this debate
-          </Typography>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
+      <div className="ambient-bg"><div className="blob-1" /><div className="blob-2" /></div>
+      <Sidebar user={user} />
+      <div className="rhetoric-main" style={{ position: 'relative', zIndex: 1 }}>
+        <header className="rhetoric-topbar">
+          <span style={{ fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: 700, color: 'var(--on-surface)' }}>Search Results</span>
+        </header>
+        <main style={{ flex: 1, padding: '40px 32px' }}>
+          <motion.h1 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            style={{ fontFamily: 'Space Grotesk', fontSize: 36, fontWeight: 800, color: 'var(--on-surface)', marginBottom: 8 }}>
+            Search Results
+          </motion.h1>
+          {term && <p style={{ color: 'var(--on-surface-variant)', fontSize: 16, marginBottom: 32 }}>Results for "<strong>{term}</strong>"</p>}
           {loading ? (
-            <Typography color="text.secondary">Searching…</Typography>
-          ) : messages.length === 0 ? (
-            <Typography color="text.secondary">No messages matched.</Typography>
+            <div className="rhetoric-loader"><div className="spinner" /></div>
+          ) : scope === 'chat' && joincode ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {messages.length === 0 ? <p style={{ color: 'var(--on-surface-variant)' }}>No messages matched.</p> :
+                messages.map(m => (
+                  <motion.div key={m._id} className="debate-card" style={{ padding: 20, cursor: 'pointer' }}
+                    whileHover={{ y: -2 }} onClick={() => nav(`/debate/${joincode}`)}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                      <strong style={{ color: 'var(--on-surface)' }}>{m.senderName || 'Anonymous'}</strong>
+                      <span className="badge-neutral" style={{ fontSize: 11 }}>{m.side}</span>
+                    </div>
+                    <p style={{ color: 'var(--on-surface-variant)', fontSize: 14 }}>{m.content}</p>
+                  </motion.div>
+                ))}
+            </div>
           ) : (
-            <List>
-              {messages.map((m) => (
-                <ListItemButton
-                  key={m._id}
-                  onClick={() => nav(`/debate/${joincode}`)}
-                >
-                  <ListItemText
-                    primary={
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <span style={{ fontWeight: 600 }}>{m.senderName || 'Anonymous'}</span>
-                        <Chip size="small" label={m.side} />
-                      </Stack>
-                    }
-                    secondary={m.content}
-                  />
-                </ListItemButton>
-              ))}
-            </List>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {debates.length === 0 ? <p style={{ color: 'var(--on-surface-variant)' }}>No debates matched.</p> :
+                debates.map((d, i) => (
+                  <motion.div key={d.joincode} className="debate-card" style={{ padding: 20, cursor: 'pointer' }}
+                    initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                    whileHover={{ y: -2 }} onClick={() => nav(d.isPublic ? `/public/debate/${d.joincode}` : `/debate/${d.joincode}`)}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                      <h3 style={{ fontFamily: 'Space Grotesk', fontSize: 18, fontWeight: 600, color: 'var(--on-surface)' }}>{d.title}</h3>
+                      <span className={d.isPublic ? 'badge-primary' : 'badge-neutral'} style={{ fontSize: 11 }}>
+                        {d.isPublic ? 'Public' : 'Private'}
+                      </span>
+                    </div>
+                    <p style={{ color: 'var(--on-surface-variant)', fontSize: 14 }}>{d.description}</p>
+                  </motion.div>
+                ))}
+            </div>
           )}
-        </Paper>
-      ) : (
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="subtitle1" sx={{ mb: 1 }}>
-            Debates
-          </Typography>
-          {loading ? (
-            <Typography color="text.secondary">Searching…</Typography>
-          ) : debates.length === 0 ? (
-            <Typography color="text.secondary">No debates matched.</Typography>
-          ) : (
-            <List>
-              {debates.map((d) => (
-                <ListItemButton key={d.joincode} onClick={() => nav(d.isPublic ? `/public/debate/${d.joincode}` : `/debate/${d.joincode}`)}>
-                  <ListItemText
-                    primary={
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <span style={{ fontWeight: 600 }}>{d.title}</span>
-                        <Chip size="small" label={d.isPublic ? 'Public' : 'Private'} color={d.isPublic ? 'success' : 'default'} />
-                      </Stack>
-                    }
-                    secondary={d.description}
-                  />
-                </ListItemButton>
-              ))}
-            </List>
-          )}
-        </Paper>
-      )}
-    </Box>
+        </main>
+      </div>
+    </div>
   );
 }

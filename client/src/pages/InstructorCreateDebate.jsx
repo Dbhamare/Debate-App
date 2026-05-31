@@ -1,20 +1,8 @@
 import React, { useState } from "react";
-import {
-  Box,
-  Typography,
-  TextField,
-  Button,
-  Switch,
-  FormControlLabel,
-  Paper,
-  Divider,
-  Snackbar,
-  Alert
-} from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
-import PageShell from "../components/PageShell";
-
+import { motion, AnimatePresence } from "framer-motion";
+import Sidebar from "../components/Sidebar";
 
 export default function InstructorCreateDebate() {
   const [formData, setFormData] = useState({
@@ -30,6 +18,7 @@ export default function InstructorCreateDebate() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ open: false, severity: "success", message: "" });
   const navigate = useNavigate();
+  const currentUser = JSON.parse(localStorage.getItem('user'));
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -65,7 +54,7 @@ export default function InstructorCreateDebate() {
       });
 
       setToast({ open: true, severity: "success", message: "Debate created successfully." });
-      navigate("/instructor/dashboard");
+      setTimeout(() => navigate("/instructor/dashboard"), 1500);
     } catch (err) {
       console.error("Error creating debate:", err);
       setToast({ open: true, severity: "error", message: "Failed to create debate. Please try again." });
@@ -75,127 +64,177 @@ export default function InstructorCreateDebate() {
   };
 
   return (
-    <PageShell headerHeight={72} maxWidth={800}>
-    <Box p={{ xs: 2, sm: 3, md: 4 }} display="flex" justifyContent="center">
-      <Paper sx={{ p: { xs: 3, sm: 4 }, maxWidth: 720, width: "100%", borderRadius: 4 }}>
-        <Typography variant="h4" fontWeight={800} sx={{ mb: 0.6, fontSize: { xs: "1.65rem", md: "2rem" } }}>
-          Create New Debate
-        </Typography>
-        <Typography color="text.secondary" sx={{ mb: 2.2 }}>
-          Configure debate details, schedule, and visibility before publishing.
-        </Typography>
-        <Divider sx={{ mb: 3 }} />
+    <div className="page-transition" style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
+      <div className="ambient-bg"><div className="blob-1" /><div className="blob-2" /></div>
+      <Sidebar user={currentUser} />
 
-        <form onSubmit={handleSubmit}>
-          <TextField
-            label="Debate Title"
-            name="title"
-            value={formData.title}
-            onChange={handleChange}
-            fullWidth
-            required
-            placeholder="e.g. Should AI replace traditional grading?"
-            sx={{ mb: 2 }}
-          />
+      <main className="rhetoric-main">
+        <header className="rhetoric-topbar">
+          <h1 className="text-headline-md" style={{ color: 'var(--on-surface)' }}>Create New Arena</h1>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button className="btn-ghost" onClick={() => navigate(-1)}>Cancel</button>
+            <button className="btn-primary" onClick={handleSubmit} disabled={loading}>
+              {loading ? 'Initializing...' : 'Deploy Arena'}
+            </button>
+          </div>
+        </header>
 
-          <TextField
-            label="Debate Topic"
-            name="topic"
-            value={formData.topic}
-            onChange={handleChange}
-            fullWidth
-            required
-            placeholder="e.g. AI in Higher Education"
-            sx={{ mb: 2 }}
-          />
-
-          <TextField
-            label="Description"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            fullWidth
-            multiline
-            rows={3}
-            required
-            placeholder="Give participants context and scope."
-            sx={{ mb: 2 }}
-          />
-
-          <TextField
-            label="Rules"
-            name="rules"
-            value={formData.rules}
-            onChange={handleChange}
-            fullWidth
-            multiline
-            rows={3}
-            required
-            placeholder="Define etiquette and moderation rules."
-            sx={{ mb: 2 }}
-          />
-
-          <FormControlLabel
-            control={
-              <Switch
-                checked={formData.isPublic}
-                onChange={handleChange}
-                name="isPublic"
-              />
-            }
-            label="Make Debate Public"
-            sx={{ mb: 2 }}
-          />
-
-          <TextField
-            label="Start Time"
-            name="startTime"
-            type="datetime-local"
-            value={formData.startTime}
-            onChange={handleChange}
-            fullWidth
-            sx={{ mb: 2 }}
-            InputLabelProps={{ shrink: true }}
-          />
-
-          <TextField
-            label="End Time"
-            name="endTime"
-            type="datetime-local"
-            value={formData.endTime}
-            onChange={handleChange}
-            fullWidth
-            sx={{ mb: 2 }}
-            InputLabelProps={{ shrink: true }}
-          />
-
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            fullWidth
-            size="large"
-            disabled={loading}
+        <div style={{ padding: '32px 24px', maxWidth: 800, margin: '0 auto', width: '100%' }}>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-panel"
+            style={{ padding: 40, borderRadius: 24 }}
           >
-            {loading ? "Creating..." : "Create Debate"}
-          </Button>
-        </form>
-      </Paper>
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={2500}
-        onClose={() => setToast((p) => ({ ...p, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setToast((p) => ({ ...p, open: false }))}
-          severity={toast.severity}
-          sx={{ width: "100%" }}
-        >
-          {toast.message}
-        </Alert>
-      </Snackbar>
-    </Box>
-    </PageShell>
+            <h2 className="text-headline-lg" style={{ marginBottom: 8 }}>Debate Configuration</h2>
+            <p className="text-body-md" style={{ color: 'var(--on-surface-variant)', marginBottom: 32 }}>
+              Define the parameters, rules, and scope for the upcoming debate session.
+            </p>
+
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              <div className="input-group">
+                <label style={{ display: 'block', color: 'var(--on-surface)', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>Debate Title</label>
+                <div className="input-wrapper">
+                  <span className="material-symbols-outlined input-icon">title</span>
+                  <input
+                    type="text"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    className="rhetoric-input"
+                    placeholder="e.g. Ethical Implications of Quantum Computing"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="input-group">
+                <label style={{ display: 'block', color: 'var(--on-surface)', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>Primary Topic</label>
+                <div className="input-wrapper">
+                  <span className="material-symbols-outlined input-icon">subject</span>
+                  <input
+                    type="text"
+                    name="topic"
+                    value={formData.topic}
+                    onChange={handleChange}
+                    className="rhetoric-input"
+                    placeholder="e.g. Emerging Technologies"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="input-group">
+                <label style={{ display: 'block', color: 'var(--on-surface)', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>Description</label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  className="rhetoric-input"
+                  style={{ paddingLeft: 16, minHeight: 100, resize: 'vertical' }}
+                  placeholder="Provide context and background for the participants..."
+                  required
+                />
+              </div>
+
+              <div className="input-group">
+                <label style={{ display: 'block', color: 'var(--on-surface)', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>Engagement Rules</label>
+                <textarea
+                  name="rules"
+                  value={formData.rules}
+                  onChange={handleChange}
+                  className="rhetoric-input"
+                  style={{ paddingLeft: 16, minHeight: 100, resize: 'vertical' }}
+                  placeholder="Define etiquette, speaking times, and moderation guidelines..."
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 280 }}>
+                  <label style={{ display: 'block', color: 'var(--on-surface)', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>Start Time</label>
+                  <input
+                    type="datetime-local"
+                    name="startTime"
+                    value={formData.startTime}
+                    onChange={handleChange}
+                    className="rhetoric-input"
+                    style={{ paddingLeft: 16 }}
+                  />
+                </div>
+                <div style={{ flex: 1, minWidth: 280 }}>
+                  <label style={{ display: 'block', color: 'var(--on-surface)', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>End Time</label>
+                  <input
+                    type="datetime-local"
+                    name="endTime"
+                    value={formData.endTime}
+                    onChange={handleChange}
+                    className="rhetoric-input"
+                    style={{ paddingLeft: 16 }}
+                  />
+                </div>
+              </div>
+
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 12, 
+                padding: '16px 20px', 
+                background: 'rgba(255,255,255,0.03)', 
+                borderRadius: 12,
+                cursor: 'pointer',
+                border: '1px solid rgba(255,255,255,0.05)'
+              }}>
+                <input
+                  type="checkbox"
+                  name="isPublic"
+                  checked={formData.isPublic}
+                  onChange={handleChange}
+                  style={{ 
+                    width: 20, height: 20, accentColor: 'var(--primary)'
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: 'var(--on-surface)', fontSize: 15, fontWeight: 600 }}>Make Arena Public</div>
+                  <div style={{ color: 'var(--on-surface-variant)', fontSize: 12 }}>Allow guests and external users to spectate.</div>
+                </div>
+              </label>
+
+              <button 
+                type="submit" 
+                className="btn-primary" 
+                style={{ width: '100%', justifyContent: 'center', height: 52, fontSize: 16 }}
+                disabled={loading}
+              >
+                {loading ? 'Processing...' : 'Deploy Arena'}
+              </button>
+            </form>
+          </motion.div>
+        </div>
+      </main>
+
+      <AnimatePresence>
+        {toast.open && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            style={{
+              position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
+              padding: '12px 24px', borderRadius: 12,
+              background: toast.severity === 'success' ? 'rgba(56,189,248,0.95)' : 'rgba(255,151,163,0.95)',
+              color: '#0b1326', fontWeight: 600, zIndex: 100, display: 'flex', alignItems: 'center', gap: 10,
+              backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+            }}
+          >
+            <span className="material-symbols-outlined">
+              {toast.severity === 'success' ? 'check_circle' : 'error'}
+            </span>
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
+

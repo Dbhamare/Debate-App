@@ -3,51 +3,8 @@ import { useParams } from 'react-router-dom';
 import api from '../services/api';
 import socket from '../services/socket';
 import PublicProfileDialog from '../components/PublicProfileDialog';
-import { FormControlLabel, Switch, Checkbox as MUICheckbox } from '@mui/material';
-
-import {
-  Box,
-  Button,
-  Chip,
-  IconButton,
-  List,
-  ListItem,
-  Menu,
-  MenuItem,
-  Paper,
-  Stack,
-  TextField,
-  Tooltip,
-  Typography,
-  ListItemIcon,
-  ListItemText,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Snackbar,
-  Alert,
-  useMediaQuery,
-} from '@mui/material';
-import { useTheme, alpha } from '@mui/material/styles';
-import PageShell from '../components/PageShell';
-
-import ThumbUpAltOutlinedIcon from '@mui/icons-material/ThumbUpAltOutlined';
-import ThumbUpAltIcon from '@mui/icons-material/ThumbUpAlt';
-import ArrowCircleUpOutlinedIcon from '@mui/icons-material/ArrowCircleUpOutlined';
-import ArrowCircleUpTwoToneIcon from '@mui/icons-material/ArrowCircleUpTwoTone';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import ReplyOutlinedIcon from '@mui/icons-material/ReplyOutlined';
-import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
-import PushPinIcon from '@mui/icons-material/PushPin';
-import CloseIcon from '@mui/icons-material/Close';
-import ThumbDownAltOutlinedIcon from '@mui/icons-material/ThumbDownAltOutlined';
-import ThumbDownAltIcon from '@mui/icons-material/ThumbDownAlt';
-import ArrowCircleDownOutlinedIcon from '@mui/icons-material/ArrowCircleDownOutlined';
-import ArrowCircleDownTwoToneIcon from '@mui/icons-material/ArrowCircleDownTwoTone';
+import { motion, AnimatePresence } from 'framer-motion';
+import Sidebar from '../components/Sidebar';
 
 import { format } from 'date-fns';
 
@@ -69,9 +26,8 @@ function computeSideTallies(messages, side) {
 
 export default function DebatePage() {
   const { joincode } = useParams();
-  const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
-  const isCompactActions = useMediaQuery(theme.breakpoints.down('sm'));
+  const isDark = true; // always dark in Stitch Premium
+  const isCompactActions = window.innerWidth < 600;
 
   const [debate, setDebate] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -127,28 +83,31 @@ export default function DebatePage() {
 
   const sides = ['proponent', 'neutral', 'opponent'];
   const sideLabel = { proponent: 'Proponent', neutral: 'Neutral', opponent: 'Opponent' };
-  const sideColors = useMemo(() => ({
+  const sideColors = {
     proponent: {
-      bg: isDark ? alpha('#88a992', 0.26) : '#e2ece4',
-      border: isDark ? alpha('#d6e5db', 0.34) : '#b8ccb9',
-      text: isDark ? '#d7e9dc' : '#284236',
+      bg: 'rgba(136,169,146,0.15)',
+      border: 'rgba(56,189,248,0.2)',
+      text: '#d7e9dc',
+      accent: '#38bdf8',
     },
     neutral: {
-      bg: isDark ? alpha('#8ea6bf', 0.24) : '#e1e9ef',
-      border: isDark ? alpha('#dde8f3', 0.34) : '#b4c3cf',
-      text: isDark ? '#dce8f5' : '#243a4d',
+      bg: 'rgba(142,166,191,0.1)',
+      border: 'rgba(255,255,255,0.08)',
+      text: '#dce8f5',
+      accent: 'rgba(142,166,191,0.5)',
     },
     opponent: {
-      bg: isDark ? alpha('#b58d95', 0.24) : '#efdfdf',
-      border: isDark ? alpha('#ead7dc', 0.34) : '#d0b4b9',
-      text: isDark ? '#f0dde1' : '#4d2a2f',
+      bg: 'rgba(181,141,149,0.12)',
+      border: 'rgba(255,69,58,0.2)',
+      text: '#f0dde1',
+      accent: '#ff453a',
     },
-  }), [isDark, theme]);
-  const authorColors = useMemo(() => ({
+  };
+  const authorColors = {
     proponent: sideColors.proponent,
     opponent: sideColors.opponent,
     instructor: sideColors.neutral,
-  }), [sideColors]);
+  };
 
   const getAuthorBucket = (msg, debate) => {
     const uid = Number(msg?.senderID);
@@ -545,10 +504,7 @@ export default function DebatePage() {
     setExpandedBodies((p) => ({ ...p, [String(id)]: !p[String(id)] }));
 
   const debateActive = debate?.status === 'active';
-  const reactionButtonSx = {
-    p: { xs: 0.85, md: 0.5 },
-    '& svg': { fontSize: { xs: 22, md: 20 } },
-  };
+  const reactionBtnStyle = { background: 'none', border: 'none', cursor: 'pointer', padding: '6px', display: 'inline-flex', alignItems: 'center', borderRadius: 6, transition: 'background 0.15s' };
 
   const castVote = async (side) => {
     if (!isLoggedIn) {
@@ -580,25 +536,13 @@ export default function DebatePage() {
 
   const MessageItem = React.memo(function MessageItem({ msg, depth = 0, sideKey }) {
     const [localReply, setLocalReply] = React.useState('');
-    const [localEdit, setLocalEdit] = React.useState('');
+const [localEdit, setLocalEdit] = React.useState('');
 
     useEffect(() => {
       if (editTarget && editTarget.id === msg._id) {
         setLocalEdit(msg.content || '');
-        setTimeout(() => {
-          document.querySelector(`#inline-edit-${msg._id}`)?.focus();
-        }, 0);
       }
     }, [editTarget, msg._id, msg.content]);
-
-    useEffect(() => {
-      if (replyTarget && replyTarget.id === msg._id) {
-        setLocalReply('');
-        setTimeout(() => {
-          document.querySelector(`#inline-reply-${msg._id}`)?.focus();
-        }, 0);
-      }
-    }, [replyTarget, msg._id]);
 
     const kids = getChildren(msg._id);
     const open = isCommentsOpen(msg._id);
@@ -609,287 +553,200 @@ export default function DebatePage() {
     const colors = authorColors[bucket] || sideColors[sideKey];
 
     return (
-      <ListItem
-        component={depth === 0 ? 'li' : 'div'}
-        key={msg._id}
-        ref={(el) => { if (el) messageRefs.current[msg._id] = el; }}
-        sx={{ alignItems: 'flex-start', pl: depth > 0 ? 0 : 0 }}
+      <div 
+        ref={el => { if (el) messageRefs.current[msg._id] = el; }}
+        className="page-transition"
+        style={{ marginBottom: 12, paddingLeft: depth > 0 ? 16 : 0 }}
       >
-        <Box sx={{ width: '100%' }}>
-          <Box
-            sx={{
-              bgcolor: colors.bg,
-              border: '1px solid',
-              borderColor: colors.border,
-              color: colors.text,
-              borderRadius: 2.4,
-              p: 1.5,
-              width: '100%',
-              boxShadow: isDark
-                ? `0 10px 20px ${alpha('#02060c', 0.3)}`
-                : `0 8px 18px ${alpha('#123865', 0.12)}`,
-              position: 'relative',
-            }}
-          >
-            {msg.replyTo && messageById[msg.replyTo] && (
-              <Chip
-                variant="outlined"
-                size="small"
-                sx={{
-                  mb: 0,
-                  bgcolor: isDark ? alpha('#dbe9ff', 0.16) : alpha('#ffffff', 0.74),
-                  borderColor: alpha(theme.palette.text.primary, 0.2),
-                }}
-                label={`Replied to ${
-                  messageById[msg.replyTo].senderName || 'Anonymous'
-                }: "${messageById[msg.replyTo].content || ''}" • ${niceSide(
-                  messageById[msg.replyTo].side,
-                )}`}
-                onClick={() => scrollToMessage(msg.replyTo)}
-              />
-            )}
+        <div 
+          className="arena-message" 
+          style={{ borderColor: colors.border, color: colors.text }}
+        >
+          {/* Reply-to reference */}
+          {msg.replyTo && messageById[msg.replyTo] && (
+            <button 
+              className="action-pill"
+              onClick={() => scrollToMessage(msg.replyTo)}
+              style={{ marginBottom: 10, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', background: 'rgba(255,255,255,0.03)' }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>shortcut</span>
+              {messageById[msg.replyTo].senderName || 'Anonymous'}: "{messageById[msg.replyTo].content?.slice(0, 40)}..."
+            </button>
+          )}
 
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Typography
-                component={msg.isAnonymous ? 'span' : 'button'}
-                fontWeight="bold"
-                sx={{
-                  cursor: msg.isAnonymous ? 'default' : 'pointer',
-                  background: 'none',
-                  border: 0,
-                  p: 0,
-                  font: 'inherit',
-                  textAlign: 'left',
-                }}
-                onClick={() => { if (!msg.isAnonymous) openProfile(msg.senderID); }}
+          {/* Header */}
+          <div className="message-meta">
+            {msg.isAnonymous ? (
+              <span className="message-sender" style={{ color: colors.text, opacity: 0.8 }}>Anonymous Agent</span>
+            ) : (
+              <span 
+                className="message-sender" 
+                style={{ color: colors.accent || colors.text }}
+                onClick={() => openProfile(msg.senderID)}
               >
-                {msg.senderName || msg.sender?.name || 'Anonymous'}
-              </Typography>
-              {msg.pinned && (
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  label="Pinned"
-                  sx={{
-                    bgcolor: isDark ? alpha('#ffe3a3', 0.2) : alpha('#fff6da', 0.85),
-                    mb: 0.0,
-                  }}
-                  onClick={() => scrollToMessage(msg._id)}
-                />
-              )}
-              <Box flexGrow={1} />
-              <Tooltip title="More">
-                <IconButton size="small" onClick={(e) => openMenu(e, msg)}>
-                  <MoreVertIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Stack>
+                {msg.senderName || msg.sender?.name || 'Unknown'}
+              </span>
+            )}
+            {msg.pinned && (
+              <span className="badge-primary" style={{ fontSize: 9, padding: '2px 6px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>push_pin</span>
+                PINNED
+              </span>
+            )}
+            <div style={{ flex: 1 }} />
+            <button className="action-pill" onClick={e => openMenu(e, msg)}>
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>more_horiz</span>
+            </button>
+          </div>
 
-            <Typography sx={{ mt: 0.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', wordBreak: 'break-word', hyphens: 'auto' }}>
-              {longBody && !expanded ? `${msg.content.slice(0, BODY_TRUNCATE)}…` : msg.content}
-            </Typography>
-
+          {/* Body */}
+          <div className="message-content" style={{ color: colors.text }}>
+            {longBody && !expanded ? `${msg.content.slice(0, BODY_TRUNCATE)}…` : msg.content}
             {longBody && (
-              <Button
-                size="small"
-                sx={{ mt: 0.5, px: 0.5, textTransform: 'none' }}
-                onClick={() => toggleBodyExpand(msg._id)}
+              <button 
+                onClick={() => toggleBodyExpand(msg._id)} 
+                className="action-pill"
+                style={{ marginLeft: 8, color: colors.accent || 'var(--primary)', padding: 0 }}
               >
-                {expanded ? 'Show less' : 'Show more'}
-              </Button>
+                {expanded ? 'collapse' : 'expand'}
+              </button>
             )}
+          </div>
 
-            {editTarget && editTarget.id === msg._id && (
-              <Box sx={{ mt: 1, pl: 1 }}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <TextField
-                    id={`inline-edit-${msg._id}`}
-                    placeholder="Edit your message"
-                    fullWidth
-                    size="small"
-                    value={localEdit}
-                    onChange={(e) => setLocalEdit(e.target.value)}
-                    disabled={!canPost(editTarget.side)}
-                  />
-                  <Button
-                    variant="contained"
-                    size="small"
-                    onClick={() =>
-                      sendEdit({ id: msg._id, side: editTarget.side, content: localEdit })
-                    }
-                    disabled={!canPost(editTarget.side)}
-                  >
-                    Save
-                  </Button>
-                  <Button variant="text" size="small" onClick={cancelEdit}>
-                    Cancel
-                  </Button>
-                </Stack>
-              </Box>
-            )}
-
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5, flexWrap: 'wrap' }}>
-              <Typography variant="caption" sx={{ color: alpha(colors.text, isDark ? 0.95 : 0.82) }}>
-                {format(new Date(msg.createdAt), 'dd MMM yyyy | hh:mm a    ')}
-              </Typography>
-              {msg.editedAt && (
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  label="Edited"
-                  sx={{ bgcolor: isDark ? alpha('#dbe9ff', 0.14) : alpha('#f3f7ff', 0.8) }}
-                />
-              )}
-            </Stack>
-
-            <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 0.5 }}>
-              <Stack direction="row" alignItems="center" spacing={0.5}>
-                <IconButton
-                  size={isCompactActions ? "medium" : "small"}
-                  sx={reactionButtonSx}
-                  onClick={() => toggleLike(msg)}
-                  disabled={!currentUser || readOnly}
-                  aria-label="like"
+          {/* Edit inline */}
+          {editTarget && editTarget.id === msg._id && (
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <textarea 
+                id={`inline-edit-${msg._id}`} 
+                className="rhetoric-input"
+                style={{ padding: '8px 12px', minHeight: 80 }}
+                value={localEdit} 
+                onChange={e => setLocalEdit(e.target.value)}
+                disabled={!canPost(editTarget.side)} 
+              />
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button className="btn-ghost" onClick={cancelEdit}>Cancel</button>
+                <button 
+                  className="btn-primary" 
+                  style={{ padding: '8px 16px' }}
+                  onClick={() => sendEdit({ id: msg._id, side: editTarget.side, content: localEdit })}
                 >
-                  {hasLiked(msg) ? <ThumbUpAltIcon fontSize="small" /> : <ThumbUpAltOutlinedIcon fontSize="small" />}
-                </IconButton>
-                <Typography variant="body2">{msg.likes?.length || 0}</Typography>
-              </Stack>
-
-              <Stack direction="row" alignItems="center" spacing={0.5}>
-                <IconButton
-                  size={isCompactActions ? "medium" : "small"}
-                  sx={reactionButtonSx}
-                  onClick={() => toggleDislike(msg)}
-                  disabled={!currentUser || readOnly}
-                  aria-label="dislike"
-                >
-                  {hasDisliked(msg) ? <ThumbDownAltIcon fontSize="small" /> : <ThumbDownAltOutlinedIcon fontSize="small" />}
-                </IconButton>
-                <Typography variant="body2">{msg.dislikes?.length || 0}</Typography>
-              </Stack>
-
-              <Stack direction="row" alignItems="center" spacing={0.5}>
-                <IconButton
-                  size={isCompactActions ? "medium" : "small"}
-                  sx={reactionButtonSx}
-                  onClick={() => toggleUpvote(msg)}
-                  disabled={!currentUser || readOnly}
-                  aria-label="upvote"
-                >
-                  {hasUpvoted(msg) ? <ArrowCircleUpTwoToneIcon fontSize="small" /> : <ArrowCircleUpOutlinedIcon fontSize="small" />}
-                </IconButton>
-                <Typography variant="body2">{msg.upvotes?.length || 0}</Typography>
-              </Stack>
-
-              <Stack direction="row" alignItems="center" spacing={0.5}>
-                <IconButton
-                  size={isCompactActions ? "medium" : "small"}
-                  sx={reactionButtonSx}
-                  onClick={() => toggleDownvote(msg)}
-                  disabled={!currentUser || readOnly}
-                  aria-label="downvote"
-                >
-                  {hasDownvoted(msg) ? <ArrowCircleDownTwoToneIcon fontSize="small" /> : <ArrowCircleDownOutlinedIcon fontSize="small" />}
-                </IconButton>
-                <Typography variant="body2">{msg.downvotes?.length || 0}</Typography>
-              </Stack>
-
-              <Stack direction="row" alignItems="center" spacing={0.5}>
-                <IconButton
-                  size={isCompactActions ? "medium" : "small"}
-                  sx={reactionButtonSx}
-                  onClick={() => startReply(msg)}
-                  disabled={readOnly}
-                  aria-label="reply"
-                >
-                  <ReplyOutlinedIcon fontSize="small" />
-                </IconButton>
-                <Typography variant="body2">Reply</Typography>
-              </Stack>
-            </Stack>
-
-            {replyTarget && replyTarget.id === msg._id && (
-              <Box sx={{ mt: 1, pl: 1 }}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <TextField
-                    id={`inline-reply-${msg._id}`}
-                    placeholder="Write your reply"
-                    fullWidth
-                    size="small"
-                    value={localReply}
-                    onChange={(e) => setLocalReply(e.target.value)}
-                    disabled={!canPost(replyTarget.side)}
-                  />
-                  <FormControlLabel
-                    control={
-                  <MUICheckbox
-                    checked={replyAnon}
-                    onChange={(e) => setReplyAnon(e.target.checked)}
-                    size="small"
-                  />
-                  }
-                    label="Anonymous"
-                  />
-                  <Button
-                    variant="contained"
-                    size="small"
-                    onClick={() =>
-                      sendReply({ id: msg._id, side: replyTarget.side, content: localReply })
-                    }
-                    disabled={!canPost(replyTarget.side)}
-                  >
-                    Send
-                  </Button>
-                  <Button variant="text" size="small" onClick={cancelReply}>
-                    Cancel
-                  </Button>
-                </Stack>
-              </Box>
-            )}
-          </Box>
-
-          {kids.length > 0 && !open && (
-            <Box sx={{ mt: 0.5, pl: depth >= 0 ? 2 : 0 }}>
-              <Button size="small" sx={{ textTransform: 'none', px: 0.5 }} onClick={() => openCommentsFor(msg._id)}>
-                Show comments ({kids.length})
-              </Button>
-            </Box>
+                  Save Changes
+                </button>
+              </div>
+            </div>
           )}
 
-          {open && (
-            <Box sx={{ mt: 1, pl: 2, borderLeft: `2px solid ${alpha(theme.palette.text.primary, 0.18)}` }}>
-              {kids.slice(0, limit).map((child) => (
-                <Box key={child._id} sx={{ mt: 1 }}>
-                  <MessageItem msg={child} depth={depth + 1} sideKey={sideKey} />
-                </Box>
-              ))}
+          {/* Footer Meta */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+            <span style={{ color: colors.text, opacity: 0.3, fontSize: 10, letterSpacing: '0.02em' }}>
+              {format(new Date(msg.createdAt), 'hh:mm a · MMM dd')}
+            </span>
+            {msg.editedAt && <span className="badge-neutral" style={{ fontSize: 9, padding: '2px 6px' }}>EDITED</span>}
+          </div>
 
-              {limit < kids.length && (
-                <Button size="small" sx={{ mt: 0.5, textTransform: 'none', px: 0.5 }} onClick={() => showMoreCommentsFor(msg._id)}>
-                  Show more comments
-                </Button>
-              )}
+          {/* Reactions */}
+          <div className="message-actions">
+            {[
+              { key: 'like', icon: 'favorite', active: hasLiked(msg), count: msg.likes?.length || 0, fn: () => toggleLike(msg) },
+              { key: 'upvote', icon: 'arrow_upward', active: hasUpvoted(msg), count: msg.upvotes?.length || 0, fn: () => toggleUpvote(msg) },
+              { key: 'downvote', icon: 'arrow_downward', active: hasDisliked(msg), count: msg.dislikes?.length || 0, fn: () => toggleDislike(msg) },
+              { key: 'downvote', icon: 'arrow_downward', active: hasDownvoted(msg), count: msg.downvotes?.length || 0, fn: () => toggleDownvote(msg) },
+            ].map(r => (
+              <button 
+                key={r.key} 
+                className={`action-pill ${r.active ? 'active' : ''}`}
+                onClick={r.fn}
+                style={{ color: r.active ? colors.accent : undefined }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{r.icon}</span>
+                {r.count > 0 && r.count}
+              </button>
+            ))}
+            <button className="action-pill" onClick={() => startReply(msg)} disabled={readOnly}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>chat_bubble</span>
+              Reply
+            </button>
+          </div>
 
-              <Button size="small" sx={{ mt: 0.5, textTransform: 'none', px: 0.5 }} onClick={() => hideCommentsFor(msg._id)}>
-                Hide comments
-              </Button>
-            </Box>
+          {/* Reply inline */}
+          {replyTarget && replyTarget.id === msg._id && (
+            <div className="page-transition" style={{ marginTop: 16, padding: 12, background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
+              <textarea 
+                id={`inline-reply-${msg._id}`} 
+                className="rhetoric-input"
+                style={{ padding: '12px', minHeight: 100 }}
+                value={localReply} 
+                onChange={e => setLocalReply(e.target.value)}
+                placeholder={`Replying to ${replyTarget.senderName}...`}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
+                <label className="text-caption" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: 'rgba(255,255,255,0.4)' }}>
+                  <input type="checkbox" checked={replyAnon} onChange={e => setReplyAnon(e.target.checked)} style={{ accentColor: 'var(--primary)' }} />
+                  Post Anonymously
+                </label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn-ghost" onClick={cancelReply}>Cancel</button>
+                  <button 
+                    className="btn-primary"
+                    style={{ padding: '8px 20px' }}
+                    disabled={!localReply.trim()}
+                    onClick={() => sendReply({ id: msg._id, side: replyTarget.side, content: localReply })}
+                  >
+                    Deploy Reply
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
-        </Box>
-      </ListItem>
+        </div>
+
+        {/* Thread comments */}
+        {kids.length > 0 && (
+          <div style={{ marginTop: 6, paddingLeft: 12 }}>
+            {!open ? (
+              <button 
+                className="action-pill" 
+                onClick={() => openCommentsFor(msg._id)}
+                style={{ color: colors.accent || 'var(--primary)', fontWeight: 800 }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>expand_more</span>
+                VIEW {kids.length} RESPONSES
+              </button>
+            ) : (
+              <div style={{ borderLeft: `1px solid ${colors.border}`, paddingLeft: 12, marginTop: 12 }}>
+                {kids.slice(0, limit).map(child => (
+                  <MessageItem key={child._id} msg={child} depth={depth + 1} sideKey={sideKey} />
+                ))}
+                <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                  {limit < kids.length && (
+                    <button className="action-pill" onClick={() => showMoreCommentsFor(msg._id)}>
+                      Load more replies
+                    </button>
+                  )}
+                  <button className="action-pill" onClick={() => hideCommentsFor(msg._id)}>
+                    Collapse thread
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     );
   });
 
   if (!debate) {
     return (
-      <PageShell headerHeight={72} maxWidth={1240}>
-        <Box py={{ xs: 3, sm: 4 }}>
-          <Typography variant="h4" textAlign="center" fontWeight={800}>
-            Debate Not Found
-          </Typography>
-        </Box>
-      </PageShell>
+      <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="ambient-bg"><div className="blob-1" /><div className="blob-2" /></div>
+        <Sidebar user={currentUser} />
+        <div className="page-transition" style={{ textAlign: 'center', position: 'relative', zIndex: 2 }}>
+          <h2 className="text-display-xl" style={{ color: 'var(--error)', marginBottom: 24 }}>ARENA REDACTED</h2>
+          <p className="text-body-lg" style={{ color: 'var(--on-surface-variant)', marginBottom: 32 }}>The requested debate session could not be located in the archives.</p>
+          <button className="btn-primary" onClick={() => navigate('/')}>Return to Base</button>
+        </div>
+      </div>
     );
   }
 
@@ -898,443 +755,244 @@ export default function DebatePage() {
   const assignedSide = !isInstructorOwner ? getAssignedSide() : null;
 
   return (
-    <PageShell headerHeight={72} maxWidth={1600} disableGutters>
-      <Box
-        sx={{
-          px: { xs: 2, sm: 2.5, lg: 3 },
-          py: { xs: 2, md: 1.2 },
-          display: 'flex',
-          flexDirection: 'column',
-          height: { xs: 'auto', md: 'calc(100vh - 72px)' },
-          overflow: { xs: 'visible', md: 'hidden' },
-          gap: 1.2,
-        }}
-      >
-      <Stack direction="row" spacing={1} justifyContent="center" alignItems="center" mb={0}>
-        <Typography variant="h4" fontWeight="bold" textAlign="center">
-          {debate.title}
-        </Typography>
-        <Chip
-          label={isPublic ? 'Public' : 'Private'}
-          color={isPublic ? 'success' : 'default'}
-          size="small"
-          sx={{ ml: 1 }}
-        />
-      </Stack>
-      <Typography variant="body1" color="text.secondary" textAlign="center" mb={1}>
-        {debate.description}
-      </Typography>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
+      <div className="ambient-bg"><div className="blob-1" /><div className="blob-2" /></div>
+      <Sidebar user={currentUser} />
+      
+      <div className="rhetoric-main page-transition" style={{ position: 'relative', zIndex: 1 }}>
+        <header className="rhetoric-topbar">
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <h1 className="text-headline-md" style={{ color: 'var(--on-surface)', margin: 0 }}>
+                {debate.title}
+              </h1>
+              <div className="badge-neutral">{isPublic ? 'PUBLIC' : 'CONFIDENTIAL'}</div>
+              <div className={`badge-${debate.status === 'active' ? 'live' : 'neutral'}`}>
+                {debate.status === 'active' && <div className="pulse-dot" />}
+                {debate.status.toUpperCase()}
+              </div>
+            </div>
+            {debate.description && (
+              <p className="text-caption" style={{ color: 'var(--on-surface-variant)', marginTop: 4 }}>
+                {debate.description}
+              </p>
+            )}
+          </div>
 
-      <Box
-        sx={{
-          mb: 0,
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-          gap: 2,
-        }}
-      >
-        <Paper sx={{ p: 2, borderRadius: 3 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="subtitle1" fontWeight="bold">
-              Proponent Points: {tProponent.points}
-            </Typography>
-            <Button
-          variant={myVote === 'proponent' ? 'contained' : 'outlined'}
-          disabled={!isLoggedIn || !debateActive || casting}
-          onClick={() => castVote('proponent')}
-        >
-          Vote Proponent ({votes.proponent})
-        </Button>
-            <Chip size="small" label={(debate.status || '').toUpperCase()} />
-          </Stack>
-          <Stack direction="row" spacing={1} mt={1} flexWrap="wrap">
-            <Chip size="small" label={`Likes: ${tProponent.likes}`} />
-            <Chip size="small" label={`Dislikes: ${tProponent.dislikes}`} />
-            <Chip size="small" label={`Upvotes: ${tProponent.upvotes}`} />
-            <Chip size="small" label={`Downvotes: ${tProponent.downvotes}`} />
-            <Chip size="small" color="primary" label={`Votes: ${votes.proponent}`} />
-          </Stack>
-        </Paper>  
-
-        <Paper sx={{ p: 2, borderRadius: 3 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="subtitle1" fontWeight="bold">
-              Opponent Points: {tOpponent.points}
-            </Typography>
-            <Button
-          variant={myVote === 'opponent' ? 'contained' : 'outlined'}
-          disabled={!isLoggedIn || !debateActive || casting}
-          onClick={() => castVote('opponent')}
-        >
-          Vote Opponent ({votes.opponent})
-        </Button>
-            <Chip size="small" label={(debate.status || '').toUpperCase()} />
-          </Stack>
-          <Stack direction="row" spacing={1} mt={1} flexWrap="wrap">
-            <Chip size="small" label={`Likes: ${tOpponent.likes}`} />
-            <Chip size="small" label={`Dislikes: ${tOpponent.dislikes}`} />
-            <Chip size="small" label={`Upvotes: ${tOpponent.upvotes}`} />
-            <Chip size="small" label={`Downvotes: ${tOpponent.downvotes}`} />
-            <Chip size="small" color="primary" label={`Votes: ${votes.opponent}`} />
-          </Stack>
-        </Paper>
-      </Box>
-
-      {isInstructorOwner && (
-        <Stack direction="row" spacing={1} justifyContent="center" mb={0}>
-          {debate.status !== 'active' && (
-            <Button
-              variant="contained"
-              color="success"
-              onClick={async () => {
-                await api.post(
-                  `/debates/join/${joincode}/start`,
-                  {},
-                  { headers: { Authorization: `Bearer ${token}` } },
-                );
-                const { data } = await api.get(`/debates/join/${joincode}`);
-                setDebate(data);
-              }}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button 
+              className={`vote-button ${myVote === 'proponent' ? 'active' : ''}`}
+              onClick={() => castVote('proponent')} 
+              disabled={!isLoggedIn || !debateActive || casting}
             >
-              Start Debate
-            </Button>
-          )}
-          {debate.status === 'active' && (
-            <Button
-              variant="outlined"
-              color="error"
-              onClick={async () => {
-                await api.post(
-                  `/debates/join/${joincode}/stop`,
-                  {},
-                  { headers: { Authorization: `Bearer ${token}` } },
-                );
-                const { data } = await api.get(`/debates/join/${joincode}`);
-                setDebate(data);
-              }}
+              PRO {votes.proponent}
+            </button>
+            <button 
+              className={`vote-button opponent ${myVote === 'opponent' ? 'active' : ''}`}
+              onClick={() => castVote('opponent')} 
+              disabled={!isLoggedIn || !debateActive || casting}
             >
-              Stop Debate
-            </Button>
-          )}
-        </Stack>
-      )}
+              OPP {votes.opponent}
+            </button>
+            
+            <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.1)', margin: '0 8px' }} />
 
-      <Stack direction="row" spacing={1} justifyContent="center" mb={0}>
-        {debate.status === 'closed' && (
-          <Button
-            variant="contained"
-            onClick={async () => {
-              const { data } = await api.get(`/debates/join/${joincode}/results`, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              setResults(data);
-              setResultsOpen(true);
-            }}
-          >
-            Show Results
-          </Button>
-        )}
-      </Stack>
-
-      {pinned.length > 0 && (
-        <Stack direction="row" justifyContent="center" mb={0} spacing={1} sx={{ flexWrap: 'wrap' }}>
-          {pinned.slice(0, 3).map((m) => (
-            <Chip
-              key={m._id}
-              sx={{
-                bgcolor: isDark ? alpha('#ffe3a3', 0.2) : alpha('#fff6da', 0.86),
-                maxWidth: 380,
-                '& .MuiChip-label': {
-                  display: 'block',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                },
-              }}
-              variant="outlined"
-              size="small"
-              icon={<PushPinIcon fontSize="small" />}
-              label={`Pinned message from ${m.senderName}: ${m.content.slice(0, 40)}${
-                m.content.length > 40 ? '…' : ''
-              }`}
-              onClick={() => scrollToMessage(m._id)}
-            />
-          ))}
-        </Stack>
-      )}
-
-      {assignedSide && (
-        <Stack direction="row" justifyContent="center" mb={0}>
-          <Chip
-            label={`You are a ${sideLabel[assignedSide]}`}
-            sx={{
-              bgcolor: sideColors[assignedSide].bg,
-              border: '1px solid',
-              borderColor: sideColors[assignedSide].border,
-              color: sideColors[assignedSide].text,
-            }}
-            variant="outlined"
-            size="medium"
-          />
-        </Stack>
-      )}
-
-      <Box
-        display="grid"
-        gap={1}
-        justifyContent="center"
-        sx={{
-          gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(300px, 1fr))' },
-          flex: 1,
-          minHeight: 0,
-        }}
-      >
-        {sides.map((sideKey) => {
-          const topLevel = messages
-            .filter((m) => m.side === sideKey && !m.replyTo)
-            .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-
-          return (
-            <Paper
-              key={sideKey}
-              sx={{
-                p: 2,
-                width: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                borderRadius: 3,
-                minHeight: { xs: 420, md: 0 },
-                height: { xs: 'auto', md: '100%' },
-              }}
-            >
-              <Typography variant="h6" gutterBottom textAlign="center">
-                {sideLabel[sideKey]} Views
-              </Typography>
-
-              <List
-                sx={{
-                  flexGrow: 1,
-                  overflowY: { xs: 'visible', md: 'auto' },
-                  minHeight: 0,
-                  mb: 2,
-                  pr: 1
-                }}
-              >
-                {topLevel.length === 0 ? (
-                  <Typography textAlign="center" color="text.secondary" mt={2}>
-                    No messages yet.
-                  </Typography>
-                ) : (
-                  topLevel.map((msg) => (
-                    <MessageItem
-                      key={msg._id}
-                      msg={msg}
-                      depth={0}
-                      sideKey={sideKey}
-                      replyValue={replyDrafts[msg._id]}
-                      onChangeReply={handleReplyDraftChange}
-                      editValue={editDrafts[msg._id]}
-                      onChangeEdit={handleEditDraftChange}
-                    />
-                  ))
+            {isInstructorOwner && (
+              <>
+                {debate.status !== 'active' && (
+                  <button className="btn-primary" onClick={async () => { await api.post(`/debates/join/${joincode}/start`, {}, { headers: { Authorization: `Bearer ${token}` } }); window.location.reload(); }}>
+                    Deploy Arena
+                  </button>
                 )}
-                <div ref={listEndRefs[sideKey]} />
-              </List>
+                {debate.status === 'active' && (
+                  <button className="btn-danger" onClick={async () => { await api.post(`/debates/join/${joincode}/stop`, {}, { headers: { Authorization: `Bearer ${token}` } }); window.location.reload(); }}>
+                    Terminate
+                  </button>
+                )}
+              </>
+            )}
+            {debate.status === 'closed' && (
+              <button className="btn-outline" onClick={async () => { const { data } = await api.get(`/debates/join/${joincode}/results`, { headers: { Authorization: `Bearer ${token}` } }); setResults(data); setResultsOpen(true); }}>
+                Review Analytics
+              </button>
+            )}
+          </div>
+        </header>
 
-              <Box display="flex" gap={1} flexWrap={{ xs: 'wrap', md: 'nowrap' }}>
-                <TextField
-                  id={`reply-input-${sideKey}`}
-                  placeholder={
-                    canPost(sideKey)
-                      ? (editTarget && editTarget.side === sideKey
-                          ? 'Edit your message'
-                          : replyTarget && replyTarget.side === sideKey
-                          ? 'Write your reply'
-                          : 'Your message')
-                      : !isLoggedIn
-                      ? 'Login required'
-                      : isPublic
-                      ? 'Debate not active'
-                      : 'Not assigned to this side'
-                  }
-                  fullWidth
-                  value={inputs[sideKey]}
-                  onChange={(e) => handleInputChange(sideKey, e.target.value)}
-                  size="small"
-                  disabled={!canPost(sideKey)}
-                />
-                <FormControlLabel
-                  sx={{ ml: 1 }}
-                  control={
-                    <Switch
-                      checked={!!anonBySide[sideKey]}
-                      onChange={(e) => setAnonBySide(p => ({ ...p, [sideKey]: e.target.checked }))}
-                      size="small"
+        {/* Pinned Alerts */}
+        <AnimatePresence>
+          {pinned.length > 0 && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              style={{ padding: '12px 24px', background: 'rgba(56,189,248,0.03)', borderBottom: '1px solid rgba(56,189,248,0.1)', display: 'flex', gap: 12, overflow: 'hidden' }}
+            >
+              {pinned.slice(0, 3).map(m => (
+                <button 
+                  key={m._id} 
+                  className="action-pill active"
+                  onClick={() => scrollToMessage(m._id)}
+                  style={{ maxWidth: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>push_pin</span>
+                  {m.senderName}: {m.content}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Tactical Feed */}
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', height: 'calc(100vh - 160px)' }}>
+          {sides.map(sideKey => {
+            const topLevel = messages.filter(m => m.side === sideKey && !m.replyTo).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+            const sc = sideColors[sideKey];
+            const isActiveSide = assignedSide === sideKey;
+
+            return (
+              <div key={sideKey} style={{ display: 'flex', flexDirection: 'column', background: 'var(--background)', position: 'relative' }}>
+                <div style={{ padding: '16px 20px', borderBottom: `1px solid ${sc.border}`, display: 'flex', alignItems: 'center', gap: 10, background: sc.bg }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: sc.accent }} />
+                  <span className="text-label-bold" style={{ color: sc.text, textTransform: 'uppercase' }}>{sideLabel[sideKey]}</span>
+                  {isActiveSide && <span className="badge-primary" style={{ fontSize: 10 }}>YOUR STATION</span>}
+                  <div style={{ flex: 1 }} />
+                  <span className="text-caption" style={{ opacity: 0.4 }}>{topLevel.length}</span>
+                </div>
+
+                <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {topLevel.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '64px 20px', opacity: 0.2 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 48, marginBottom: 12 }}>terminal</span>
+                      <p className="text-caption">Awaiting tactical data...</p>
+                    </div>
+                  ) : (
+                    topLevel.map(msg => <MessageItem key={msg._id} msg={msg} depth={0} sideKey={sideKey} />)
+                  )}
+                  <div ref={listEndRefs[sideKey]} />
+                </div>
+
+                <div style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)' }}>
+                  <div className="input-wrapper" style={{ marginBottom: 12 }}>
+                    <textarea
+                      className="rhetoric-input"
+                      style={{ padding: '12px 16px', minHeight: 80, border: isActiveSide ? `1px solid ${sc.border}` : undefined }}
+                      placeholder={canPost(sideKey) ? "Input argument..." : "Access restricted"}
+                      value={inputs[sideKey]}
+                      onChange={e => handleInputChange(sideKey, e.target.value)}
+                      disabled={!canPost(sideKey)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(sideKey); } }}
                     />
-                  }
-                  label="Anonymous"
-                />
-                <Menu
-                  anchorReference={menuPos ? 'anchorPosition' : 'anchorEl'}
-                  anchorEl={menuAnchor}
-                  anchorPosition={menuPos || { top: 0, left: 0 }}
-                  open={Boolean(menuPos || menuAnchor)}
-                  onClose={closeMenu}
-                  keepMounted
-                  transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-                >
-                  {menuMsg && currentUser && menuMsg.senderID === currentUser.userID && (
-                    <MenuItem
-                      onClick={() => {
-                        startEdit(menuMsg);
-                        closeMenu();
-                      }}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label className="text-caption" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: 0.5 }}>
+                      <input type="checkbox" checked={!!anonBySide[sideKey]} onChange={e => setAnonBySide(p => ({ ...p, [sideKey]: e.target.checked }))} style={{ accentColor: sc.accent }} />
+                      Stealth Mode
+                    </label>
+                    <button 
+                      className="btn-primary" 
+                      style={{ padding: '8px 24px', background: sc.accent }}
+                      onClick={() => sendMessage(sideKey)} 
+                      disabled={!canPost(sideKey) || !inputs[sideKey].trim()}
                     >
-                      <ListItemIcon>
-                        <EditOutlinedIcon fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText>Edit</ListItemText>
-                    </MenuItem>
-                  )}
+                      Transmit
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
-                  {menuMsg &&
-                    currentUser &&
-                    (menuMsg.senderID === currentUser.userID || isInstructorOwner) && (
-                      <MenuItem
-                        onClick={() => {
-                          handleDelete(menuMsg);
-                          closeMenu();
-                        }}
-                      >
-                        <ListItemIcon>
-                          <DeleteOutlineIcon fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText>Delete</ListItemText>
-                      </MenuItem>
-                    )}
+      <PublicProfileDialog open={profileOpen} onClose={closeProfile} userID={profileUserID} isAnonymous={false} />
 
-                  {menuMsg && isInstructorOwner && (
-                    <MenuItem
-                      onClick={() => {
-                        handlePinToggle(menuMsg);
-                        closeMenu();
-                      }}
-                    >
-                      <ListItemIcon>
-                        {menuMsg.pinned ? (
-                          <PushPinIcon fontSize="small" />
-                        ) : (
-                          <PushPinOutlinedIcon fontSize="small" />
-                        )}
-                      </ListItemIcon>
-                      <ListItemText>{menuMsg.pinned ? 'Unpin' : 'Pin'}</ListItemText>
-                    </MenuItem>
-                  )}
+      {/* Legacy Context Menu - Still needed but styled better */}
+      <AnimatePresence>
+        {menuPos && menuMsg && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+            style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, background: 'var(--surface-container-highest)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, boxShadow: '0 12px 48px rgba(0,0,0,0.6)', zIndex: 1000, overflow: 'hidden' }}>
+            <div style={{ padding: '8px' }}>
+              {currentUser && menuMsg.senderID === currentUser.userID && (
+                <button className="nav-link" onClick={() => { startEdit(menuMsg); closeMenu(); }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>edit</span> Edit Argument
+                </button>
+              )}
+              {currentUser && (menuMsg.senderID === currentUser.userID || isInstructorOwner) && (
+                <button className="nav-link" style={{ color: 'var(--error)' }} onClick={() => { handleDelete(menuMsg); closeMenu(); }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>delete</span> Redact
+                </button>
+              )}
+              {isInstructorOwner && (
+                <button className="nav-link" onClick={() => { handlePinToggle(menuMsg); closeMenu(); }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>push_pin</span> {menuMsg.pinned ? 'Unpin' : 'Pin to Intel'}
+                </button>
+              )}
+              <button className="nav-link" onClick={() => { handleFlag(menuMsg); closeMenu(); }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>flag</span> Report Violation
+              </button>
+            </div>
+            <button className="btn-ghost" style={{ width: '100%', borderRadius: 0, border: 'none', borderTop: '1px solid rgba(255,255,255,0.05)' }} onClick={closeMenu}>Cancel</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                  {menuMsg && (
-                    <MenuItem
-                      onClick={() => {
-                        handleFlag(menuMsg);
-                        closeMenu();
-                      }}
-                    >
-                      <ListItemIcon>
-                        <FlagOutlinedIcon fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText>Flag as inappropriate</ListItemText>
-                    </MenuItem>
-                  )}
-                </Menu>
+      {/* Results Overlay */}
+      <AnimatePresence>
+        {resultsOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.85)', backdropFilter: 'blur(12px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
+              className="glass-panel" style={{ padding: 48, borderRadius: 32, maxWidth: 800, width: '100%', position: 'relative' }}>
+              <button onClick={() => setResultsOpen(false)} style={{ position: 'absolute', top: 24, right: 24, background: 'none', border: 'none', color: 'var(--on-surface-variant)', cursor: 'pointer' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 32 }}>close</span>
+              </button>
+              
+              <div style={{ textAlign: 'center', marginBottom: 48 }}>
+                <h2 className="text-display-xl" style={{ marginBottom: 16 }}>ARENA SUMMARY</h2>
+                <div style={{ height: 2, width: 80, background: 'var(--primary)', margin: '0 auto' }} />
+              </div>
 
-                <Button
-                  variant="contained"
-                  onClick={() => sendMessage(sideKey)}
-                  disabled={!canPost(sideKey)}
-                >
-                  Send
-                </Button>
-              </Box>
-            </Paper>
-          );
-        })}
-        <PublicProfileDialog open={profileOpen} onClose={closeProfile} userID={profileUserID} isAnonymous={false} />
-      </Box>
+              {!results ? <div className="rhetoric-loader"><div className="spinner" /></div> : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+                  <div className="glass-card" style={{ padding: 32, borderRadius: 24, textAlign: 'center', background: 'rgba(56,189,248,0.05)' }}>
+                    <p className="text-label-bold" style={{ color: 'var(--primary)', marginBottom: 8 }}>PREVAILING PERSPECTIVE</p>
+                    <h3 className="text-headline-lg" style={{ fontSize: 48 }}>
+                      {results.winner === 'draw' ? 'STALEMATE' : results.winner.toUpperCase()}
+                    </h3>
+                  </div>
 
-      <Dialog open={resultsOpen} onClose={() => setResultsOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Debate Results</DialogTitle>
-        <DialogContent dividers>
-  {!results ? (
-    <Typography>Loading…</Typography>
-  ) : (
-    <Stack spacing={2}>
-      <Typography variant="subtitle1">
-        Outcome:{' '}
-        <b>
-          {results.winner === 'draw'
-            ? 'Draw'
-            : `${results.winner.charAt(0).toUpperCase() + results.winner.slice(1)} won`}
-        </b>
-      </Typography>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                    <div className="stat-card">
+                      <p className="text-caption">PROPONENT VOTES</p>
+                      <h4 className="text-headline-lg" style={{ fontSize: 40 }}>{results.votes?.proponent ?? 0}</h4>
+                      <div className="glow-blob" />
+                    </div>
+                    <div className="stat-card">
+                      <p className="text-caption">OPPONENT VOTES</p>
+                      <h4 className="text-headline-lg" style={{ fontSize: 40, color: '#ff97a3' }}>{results.votes?.opponent ?? 0}</h4>
+                      <div className="glow-blob" style={{ background: 'rgba(255,151,163,0.1)' }} />
+                    </div>
+                  </div>
 
-      <Paper sx={{ p: 2 }}>
-        <Typography variant="subtitle2" fontWeight="bold">Votes</Typography>
-        <Stack direction="row" spacing={1} mt={1} flexWrap="wrap" alignItems="center">
-          <Chip size="small" color="primary" label={`Proponent: ${results.votes?.proponent ?? 0}`} />
-          <Chip size="small" color="primary" label={`Opponent: ${results.votes?.opponent ?? 0}`} />
-        </Stack>
-      </Paper>
+                  <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setResultsOpen(false)}>Acknowledged</button>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {['proponent', 'opponent', 'neutral'].map((s) => (
-        <Paper key={s} sx={{ p: 2 }}>
-          <Typography variant="subtitle2" fontWeight="bold">
-            {s.charAt(0).toUpperCase() + s.slice(1)}
-          </Typography>
-          <Stack direction="row" spacing={1} mt={1} flexWrap="wrap">
-            <Chip size="small" label={`Likes: ${results.tallies[s].likes}`} />
-            <Chip size="small" label={`Dislikes: ${results.tallies[s].dislikes}`} />
-            <Chip size="small" label={`Upvotes: ${results.tallies[s].upvotes}`} />
-            <Chip size="small" label={`Downvotes: ${results.tallies[s].downvotes}`} />
-            <Chip size="small" label={`Points: ${results.tallies[s].points}`} />
-          </Stack>
-        </Paper>
-      ))}
-
-      <Paper sx={{ p: 2 }}>
-        <Typography variant="subtitle2" fontWeight="bold">Top Messages</Typography>
-        <Typography sx={{ mt: 1 }}>
-          <b>Most Liked:</b> {results.mostLiked?.senderName} — “{results.mostLiked?.content}” ({results.mostLiked?.likes || 0})
-        </Typography>
-        <Typography>
-          <b>Most Disliked:</b> {results.mostDisliked?.senderName} — “{results.mostDisliked?.content}” ({results.mostDisliked?.dislikes || 0})
-        </Typography>
-        <Typography>
-          <b>Most Upvoted:</b> {results.mostUpvoted?.senderName} — “{results.mostUpvoted?.content}” ({results.mostUpvoted?.upvotes || 0})
-        </Typography>
-        <Typography>
-          <b>Most Downvoted:</b> {results.mostDownvoted?.senderName} — “{results.mostDownvoted?.content}” ({results.mostDownvoted?.downvotes || 0})
-        </Typography>
-      </Paper>
-    </Stack>
-  )}
-</DialogContent>
-        <DialogActions>
-          <Button onClick={() => setResultsOpen(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={2500}
-        onClose={() => setToast((p) => ({ ...p, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setToast((p) => ({ ...p, open: false }))}
-          severity={toast.severity}
-          sx={{ width: '100%' }}
-        >
-          {toast.message}
-        </Alert>
-      </Snackbar>
-      </Box>
-    </PageShell>
+      {/* Global Toast */}
+      <AnimatePresence>
+        {toast.open && (
+          <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }}
+            style={{ position: 'fixed', bottom: 40, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: toast.severity === 'error' ? 'rgba(255,151,163,0.95)' : 'rgba(56,189,248,0.95)', color: '#0b1326', padding: '16px 32px', borderRadius: 16, fontWeight: 800, boxShadow: '0 8px 32px rgba(0,0,0,0.5)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+            onClick={() => setToast(p => ({ ...p, open: false }))}>
+            <span className="material-symbols-outlined">{toast.severity === 'error' ? 'report' : 'info'}</span>
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

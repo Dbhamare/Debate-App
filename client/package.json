@@ -19,6 +19,7 @@
     "bootstrap": "^5.3.7",
     "date-fns": "^4.1.0",
     "emoji-picker-react": "^4.13.2",
+    "framer-motion": "^12.38.0",
     "multer": "^2.0.2",
     "react": "^19.1.0",
     "react-bootstrap": "^2.10.10",

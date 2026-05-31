@@ -1,423 +1,337 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Box, Paper, Typography, TextField, Button,
-  List, ListItem, MenuItem, Stack, Avatar, Dialog, DialogContent, DialogTitle, DialogActions, Snackbar, Alert, Divider, Chip
-} from '@mui/material';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
-import PageShell from '../components/PageShell';
-import PasswordField from '../components/PasswordField';
+import Sidebar from '../components/Sidebar';
 
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'http://localhost:5000';
 
-const toProfileFields = (data = {}) => ({
-  name: data.name || '',
-  email: data.email || '',
-  avatarUrl: data.avatarUrl || '',
-  title: data.title || '',
-  gender: data.gender || '',
-  phone: data.phone || '',
-  bio: data.bio || '',
-  course: data.course || '',
+const toProfileFields = (d = {}) => ({
+  name: d.name || '', email: d.email || '', avatarUrl: d.avatarUrl || '',
+  title: d.title || '', gender: d.gender || '', phone: d.phone || '',
+  bio: d.bio || '', course: d.course || '',
 });
+
+function Modal({ title, children, onClose }) {
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
+        zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        style={{ background: 'var(--surface-container)', border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 16, padding: 32, maxWidth: 440, width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h3 style={{ fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: 700, color: 'var(--on-surface)' }}>{title}</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--outline)', fontSize: 22 }}>×</button>
+        </div>
+        {children}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+const fieldStyle = {
+  display: 'block', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em',
+  textTransform: 'uppercase', color: 'var(--on-surface-variant)', marginBottom: 6
+};
 
 export default function ProfilePage() {
   const navigate = useNavigate();
   const [me, setMe] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [deleteAvatarOpen, setDeleteAvatarOpen] = useState(false);
-  const [toast, setToast] = useState({ open: false, severity: 'success', message: '' });
-
-  const [otpOpen, setOtpOpen] = useState(false);
-  const [otpPurpose, setOtpPurpose] = useState(null);
-  const [otpTarget, setOtpTarget] = useState('');
+  const [otpModal, setOtpModal] = useState({ open: false, purpose: null, target: '' });
   const [otpCode, setOtpCode] = useState('');
   const [verifying, setVerifying] = useState(false);
-
+  const [form, setForm] = useState({ name: '', email: '', avatarUrl: '', title: '', gender: '', phone: '', bio: '', course: '', oldPassword: '', newPassword: '' });
   const token = localStorage.getItem('token');
+  const user = (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })();
 
-  const [form, setForm] = useState({
-    name: '', email: '', avatarUrl: '',
-    title: '', gender: '', phone: '', bio: '', course: '',
-    oldPassword: '', newPassword: ''
-  });
-  const [, setSavedProfile] = useState(() => toProfileFields());
+  const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3000); };
 
   useEffect(() => {
+    if (!token) { navigate('/login', { replace: true }); return; }
     const load = async () => {
-      if (!token) {
-        navigate('/login', { replace: true });
-        return;
-      }
-
       try {
         const { data } = await api.get('/profile/me', { headers: { Authorization: `Bearer ${token}` } });
-        const persisted = toProfileFields(data);
-        setMe(data);
-        setSavedProfile(persisted);
-        setForm((f) => ({
-          ...f,
-          ...persisted,
-        }));
+        setMe(data); setForm(f => ({ ...f, ...toProfileFields(data) }));
       } catch (e) {
-        if (e.response?.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          navigate('/login', { replace: true });
-          return;
-        }
-        console.error('load profile failed', e);
+        if (e.response?.status === 401) { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/login', { replace: true }); }
       }
     };
     load();
   }, [token, navigate]);
 
-  const onChange = (e) => {
-    const { name, value } = e.target;
-    setForm((f) => ({ ...f, [name]: value }));
-  };
+  const onChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
   const onPickAvatar = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const fd = new FormData();
-    fd.append('avatar', file);
+    const file = e.target.files?.[0]; if (!file) return;
+    const fd = new FormData(); fd.append('avatar', file);
     try {
-      const { data } = await api.post('/profile/avatar', fd, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
-      });
+      const { data } = await api.post('/profile/avatar', fd, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } });
       const avatarUrl = data.avatarUrl || '';
-      setForm((f) => ({ ...f, avatarUrl }));
-      setSavedProfile((p) => ({ ...p, avatarUrl }));
-      setMe((prev) => (prev ? { ...prev, avatarUrl } : prev));
-      const u = JSON.parse(localStorage.getItem('user') || 'null') || {};
-      localStorage.setItem('user', JSON.stringify({ ...u, avatarUrl }));
-      setToast({ open: true, severity: 'success', message: 'Profile picture updated.' });
-    } catch (err) {
-      setToast({ open: true, severity: 'error', message: err.response?.data?.message || 'Failed to upload avatar' });
-    } finally {
-      e.target.value = '';
-    }
+      setForm(f => ({ ...f, avatarUrl })); setMe(p => p ? { ...p, avatarUrl } : p);
+      const u = JSON.parse(localStorage.getItem('user') || '{}'); localStorage.setItem('user', JSON.stringify({ ...u, avatarUrl }));
+      showToast('Profile picture updated.');
+    } catch (err) { showToast(err.response?.data?.message || 'Failed to upload avatar', 'error'); }
+    finally { e.target.value = ''; }
   };
 
   const onDeleteAvatar = async () => {
     try {
       await api.delete('/profile/avatar', { headers: { Authorization: `Bearer ${token}` } });
-      setForm((f) => ({ ...f, avatarUrl: '' }));
-      setSavedProfile((p) => ({ ...p, avatarUrl: '' }));
-      setMe((prev) => (prev ? { ...prev, avatarUrl: '' } : prev));
-      const u = JSON.parse(localStorage.getItem('user') || 'null') || {};
-      localStorage.setItem('user', JSON.stringify({ ...u, avatarUrl: '' }));
-      setToast({ open: true, severity: 'success', message: 'Profile picture removed.' });
-    } catch (e) {
-      setToast({ open: true, severity: 'error', message: e.response?.data?.message || 'Failed to delete avatar' });
-    } finally {
-      setDeleteAvatarOpen(false);
-    }
+      setForm(f => ({ ...f, avatarUrl: '' })); setMe(p => p ? { ...p, avatarUrl: '' } : p);
+      const u = JSON.parse(localStorage.getItem('user') || '{}'); localStorage.setItem('user', JSON.stringify({ ...u, avatarUrl: '' }));
+      showToast('Profile picture removed.');
+    } catch (e) { showToast(e.response?.data?.message || 'Failed to delete avatar', 'error'); }
+    finally { setDeleteAvatarOpen(false); }
   };
 
   const onSave = async (e) => {
-    e.preventDefault();
-    setSaving(true);
+    e.preventDefault(); setSaving(true);
     try {
       const payload = toProfileFields(form);
-      const { data } = await api.patch('/profile/me', payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const updatedProfile = toProfileFields({ ...payload, ...data });
-      setSavedProfile(updatedProfile);
-      setMe((prev) => (prev ? { ...prev, ...updatedProfile } : prev));
-      setForm((f) => ({ ...f, ...updatedProfile }));
-      const u = JSON.parse(localStorage.getItem('user') || 'null') || {};
-      localStorage.setItem('user', JSON.stringify({
-        ...u,
-        name: updatedProfile.name,
-        email: updatedProfile.email,
-        avatarUrl: updatedProfile.avatarUrl
-      }));
-      setToast({ open: true, severity: 'success', message: 'Profile updated.' });
-    } catch (e) {
-      setToast({ open: true, severity: 'error', message: e.response?.data?.message || 'Failed to update profile' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const onCancelChanges = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-    navigate('/dashboard');
+      const { data } = await api.patch('/profile/me', payload, { headers: { Authorization: `Bearer ${token}` } });
+      const updated = toProfileFields({ ...payload, ...data });
+      setMe(p => p ? { ...p, ...updated } : p); setForm(f => ({ ...f, ...updated }));
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      localStorage.setItem('user', JSON.stringify({ ...u, name: updated.name, email: updated.email, avatarUrl: updated.avatarUrl }));
+      showToast('Profile updated.');
+    } catch (e) { showToast(e.response?.data?.message || 'Failed to update profile', 'error'); }
+    finally { setSaving(false); }
   };
 
   const requestEmailOtp = async () => {
-    if (!form.email || form.email === me?.email) {
-      setToast({ open: true, severity: 'warning', message: 'Enter a new email to verify.' });
-      return;
-    }
+    if (!form.email || form.email === me?.email) { showToast('Enter a new email to verify.', 'error'); return; }
     try {
       await api.post('/otp/profile/email/request', { newEmail: form.email }, { headers: { Authorization: `Bearer ${token}` } });
-      setOtpPurpose('change_email'); setOtpTarget(form.email); setOtpCode(''); setOtpOpen(true);
-    } catch (e) {
-      setToast({ open: true, severity: 'error', message: e.response?.data?.message || 'Failed to send email OTP' });
-    }
+      setOtpModal({ open: true, purpose: 'change_email', target: form.email }); setOtpCode('');
+    } catch (e) { showToast(e.response?.data?.message || 'Failed to send email OTP', 'error'); }
   };
 
   const requestPasswordOtp = async () => {
-    if (!form.newPassword) {
-      setToast({ open: true, severity: 'warning', message: 'Enter a new password first.' });
-      return;
-    }
+    if (!form.newPassword) { showToast('Enter a new password first.', 'error'); return; }
     try {
       await api.post('/otp/profile/password/request', {}, { headers: { Authorization: `Bearer ${token}` } });
-      setOtpPurpose('change_password'); setOtpTarget(''); setOtpCode(''); setOtpOpen(true);
-    } catch (e) {
-      setToast({ open: true, severity: 'error', message: e.response?.data?.message || 'Failed to send password OTP' });
-    }
+      setOtpModal({ open: true, purpose: 'change_password', target: '' }); setOtpCode('');
+    } catch (e) { showToast(e.response?.data?.message || 'Failed to send password OTP', 'error'); }
   };
 
-  const requestPhoneOtp = async () => {
-    if (!form.phone) {
-      setToast({ open: true, severity: 'warning', message: 'Enter a phone number with country code.' });
-      return;
-    }
+  const verifyOtp = async () => {
+    setVerifying(true);
     try {
-      await api.post('/otp/profile/phone/request', { newPhone: form.phone }, { headers: { Authorization: `Bearer ${token}` } });
-      setOtpPurpose('change_phone'); setOtpTarget(form.phone); setOtpCode(''); setOtpOpen(true);
-    } catch (e) {
-      setToast({ open: true, severity: 'error', message: e.response?.data?.message || 'Failed to send SMS OTP' });
-    }
-  };
-
-  const verifyCurrentOtp = async () => {
-    try {
-      setVerifying(true);
-      if (otpPurpose === 'change_email') {
-        const { data } = await api.post('/otp/profile/email/verify', { code: otpCode, newEmail: otpTarget }, { headers: { Authorization: `Bearer ${token}` } });
-        const email = data.email || '';
-        setForm((f) => ({ ...f, email }));
-        setSavedProfile((p) => ({ ...p, email }));
-        setMe((prev) => (prev ? { ...prev, email } : prev));
-        const u = JSON.parse(localStorage.getItem('user') || 'null') || {};
-        localStorage.setItem('user', JSON.stringify({ ...u, email }));
-        setToast({ open: true, severity: 'success', message: 'Email verified and updated.' });
-      } else if (otpPurpose === 'change_password') {
+      if (otpModal.purpose === 'change_email') {
+        const { data } = await api.post('/otp/profile/email/verify', { code: otpCode, newEmail: otpModal.target }, { headers: { Authorization: `Bearer ${token}` } });
+        setForm(f => ({ ...f, email: data.email || '' }));
+        showToast('Email verified and updated.');
+      } else if (otpModal.purpose === 'change_password') {
         await api.post('/otp/profile/password/verify', { code: otpCode, newPassword: form.newPassword }, { headers: { Authorization: `Bearer ${token}` } });
-        setForm((f) => ({ ...f, oldPassword: '', newPassword: '' }));
-        setToast({ open: true, severity: 'success', message: 'Password updated.' });
-      } else if (otpPurpose === 'change_phone') {
-        const { data } = await api.post('/otp/profile/phone/verify', { code: otpCode, newPhone: otpTarget }, { headers: { Authorization: `Bearer ${token}` } });
-        const phone = data.phone || '';
-        setForm((f) => ({ ...f, phone }));
-        setSavedProfile((p) => ({ ...p, phone }));
-        setMe((prev) => (prev ? { ...prev, phone } : prev));
-        setToast({ open: true, severity: 'success', message: 'Phone verified and updated.' });
+        setForm(f => ({ ...f, oldPassword: '', newPassword: '' }));
+        showToast('Password updated.');
       }
-      setOtpOpen(false);
-    } catch (e) {
-      setToast({ open: true, severity: 'error', message: e.response?.data?.message || 'Verification failed' });
-    } finally {
-      setVerifying(false);
-    }
+      setOtpModal({ open: false, purpose: null, target: '' });
+    } catch (e) { showToast(e.response?.data?.message || 'Verification failed', 'error'); }
+    finally { setVerifying(false); }
   };
 
-  const avatarSrc = form.avatarUrl ? `${API_ORIGIN}${form.avatarUrl}` : undefined;
+  const avatarSrc = form.avatarUrl ? `${API_ORIGIN}${form.avatarUrl}` : null;
   const fallback = form.name?.[0]?.toUpperCase() || 'U';
 
   return (
-    <PageShell headerHeight={72} maxWidth={1120}>
-      <Box py={{ xs: 2, sm: 3 }} display="flex" justifyContent="center">
-        <Paper sx={{ p: { xs: 2.6, sm: 3.5 }, width: '100%', maxWidth: 980, borderRadius: 4 }} component="form" onSubmit={onSave}>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            justifyContent="space-between"
-            alignItems={{ xs: 'flex-start', sm: 'center' }}
-            spacing={1}
-            sx={{ mb: 1.5 }}
-          >
-            <Box>
-              <Typography variant="h4" fontWeight={800} sx={{ fontSize: { xs: '1.65rem', md: '2rem' } }}>
-                My Profile
-              </Typography>
-              <Typography color="text.secondary">
-                Update personal details, avatar, and account security.
-              </Typography>
-            </Box>
-            <Chip label={me?.role || 'user'} size="small" color="primary" variant="outlined" />
-          </Stack>
-          <Divider sx={{ mb: 2.5 }} />
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
+      <div className="ambient-bg"><div className="blob-1" /><div className="blob-2" /></div>
+      <Sidebar user={user} />
+      <div className="rhetoric-main" style={{ position: 'relative', zIndex: 1 }}>
+        <header className="rhetoric-topbar">
+          <span style={{ fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: 700, color: 'var(--on-surface)' }}>My Profile</span>
+        </header>
+        <main style={{ flex: 1, padding: '40px 32px', display: 'flex', justifyContent: 'center' }}>
+          <motion.form onSubmit={onSave} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            style={{ width: '100%', maxWidth: 780 }}>
+            <div style={{ marginBottom: 40 }}>
+              <h1 style={{ fontFamily: 'Space Grotesk', fontSize: 36, fontWeight: 800, color: 'var(--on-surface)', letterSpacing: '-0.01em', marginBottom: 6 }}>My Profile</h1>
+              <p style={{ color: 'var(--on-surface-variant)', fontSize: 16 }}>Update personal details, avatar, and account security.</p>
+            </div>
 
-        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2} sx={{ mb: 2.5 }}>
-          <Avatar
-            src={avatarSrc}
-            sx={{ width: 72, height: 72, cursor: avatarSrc ? 'zoom-in' : 'default' }}
-            onClick={() => avatarSrc && setPreviewOpen(true)}
-          >
-            {fallback}
-          </Avatar>
+            {/* Avatar */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 32, marginBottom: 24 }}>
+              <h2 style={{ fontFamily: 'Space Grotesk', fontSize: 18, fontWeight: 700, color: 'var(--on-surface)', marginBottom: 20 }}>Profile Picture</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                <div style={{
+                  width: 80, height: 80, borderRadius: '50%',
+                  background: avatarSrc ? `url(${avatarSrc}) center/cover` : 'rgba(56,189,248,0.15)',
+                  border: '2px solid rgba(56,189,248,0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--primary)', fontWeight: 700, fontSize: 28, fontFamily: 'Space Grotesk',
+                  cursor: avatarSrc ? 'zoom-in' : 'default', flexShrink: 0
+                }} onClick={() => avatarSrc && setPreviewOpen(true)}>{!avatarSrc && fallback}</div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+                    background: 'var(--primary)', color: 'var(--on-primary)', border: 'none', borderRadius: 8,
+                    padding: '10px 18px', fontSize: 13, fontWeight: 600, letterSpacing: '0.05em' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>upload</span>
+                    Upload Avatar
+                    <input type="file" hidden accept="image/*" onChange={onPickAvatar} />
+                  </label>
+                  {form.avatarUrl && (
+                    <button type="button" onClick={() => setDeleteAvatarOpen(true)} className="btn-danger" style={{ padding: '10px 18px', fontSize: 13 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span> Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
 
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', sm: 'auto' } }}>
-            <Button variant="outlined" component="label">
-              Upload New Avatar
-              <input type="file" hidden accept="image/*" onChange={onPickAvatar} />
-            </Button>
-            <Button variant="text" color="error" onClick={() => setDeleteAvatarOpen(true)} disabled={!form.avatarUrl}>
-              Delete Avatar
-            </Button>
-          </Stack>
-        </Stack>
+            {/* Personal Info */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 32, marginBottom: 24 }}>
+              <h2 style={{ fontFamily: 'Space Grotesk', fontSize: 18, fontWeight: 700, color: 'var(--on-surface)', marginBottom: 24 }}>Personal Information</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
+                {[
+                  { label: 'Full Name', name: 'name', type: 'text', placeholder: 'Your full name', required: true },
+                  { label: 'Title', name: 'title', type: 'text', placeholder: 'e.g. MSc Student' },
+                  { label: 'Course', name: 'course', type: 'text', placeholder: 'MSc Computer Science' },
+                ].map(f => (
+                  <div key={f.name}>
+                    <label style={fieldStyle}>{f.label}</label>
+                    <input className="rhetoric-input" style={{ paddingLeft: 16 }} type={f.type}
+                      name={f.name} placeholder={f.placeholder} value={form[f.name]}
+                      onChange={onChange} required={f.required} />
+                  </div>
+                ))}
+                <div>
+                  <label style={fieldStyle}>Gender</label>
+                  <select name="gender" value={form.gender} onChange={onChange}
+                    style={{ width: '100%', background: 'var(--surface-container-lowest)', border: '1px solid rgba(62,72,79,0.5)', borderRadius: 8, padding: '12px 16px', color: 'var(--on-surface)', fontSize: 16, outline: 'none' }}>
+                    <option value="">Select gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                    <option value="prefer_not_to_say">Prefer not to say</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ marginTop: 20 }}>
+                <label style={fieldStyle}>Bio</label>
+                <textarea name="bio" value={form.bio} onChange={onChange} rows={4}
+                  placeholder="Tell us about yourself..." className="rhetoric-input"
+                  style={{ paddingLeft: 16, resize: 'vertical', minHeight: 100 }} />
+              </div>
+            </div>
 
-        <List disablePadding>
-          <ListItem sx={{ px: 0, py: 1 }}>
-            <TextField
-              id="profile-title"
-              label="Title"
-              name="title"
-              autoComplete="organization-title"
-              value={form.title}
-              onChange={onChange}
-              fullWidth
-              placeholder="e.g., MSc Student, Instructor"
-            />
-          </ListItem>
+            {/* Email */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 32, marginBottom: 24 }}>
+              <h2 style={{ fontFamily: 'Space Grotesk', fontSize: 18, fontWeight: 700, color: 'var(--on-surface)', marginBottom: 20 }}>Email Address</h2>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div className="input-wrapper" style={{ flex: 1 }}>
+                  <span className="input-icon material-symbols-outlined">mail</span>
+                  <input className="rhetoric-input" type="email" name="email" value={form.email} onChange={onChange} placeholder="your@email.com" required />
+                </div>
+                <motion.button type="button" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                  onClick={requestEmailOtp} className="btn-outline" style={{ flexShrink: 0 }}>
+                  Verify New Email
+                </motion.button>
+              </div>
+            </div>
 
-          <ListItem sx={{ px: 0, py: 1 }}>
-            <TextField id="profile-name" label="Full Name" name="name" autoComplete="name" value={form.name} onChange={onChange} fullWidth required />
-          </ListItem>
+            {/* Phone */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 32, marginBottom: 24 }}>
+              <h2 style={{ fontFamily: 'Space Grotesk', fontSize: 18, fontWeight: 700, color: 'var(--on-surface)', marginBottom: 20 }}>Phone Number</h2>
+              <div className="input-wrapper">
+                <span className="input-icon material-symbols-outlined">phone</span>
+                <input className="rhetoric-input" type="tel" name="phone" value={form.phone} onChange={onChange} placeholder="+447700900123" />
+              </div>
+            </div>
 
-          <ListItem sx={{ px: 0, py: 1, gap: 1, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' } }}>
-            <TextField id="profile-email" label="Email" name="email" type="email" autoComplete="email" value={form.email} onChange={onChange} fullWidth required />
-            <Button variant="outlined" onClick={requestEmailOtp}>Verify new email</Button>
-          </ListItem>
+            {/* Password */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 32, marginBottom: 32 }}>
+              <h2 style={{ fontFamily: 'Space Grotesk', fontSize: 18, fontWeight: 700, color: 'var(--on-surface)', marginBottom: 20 }}>Change Password</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label style={fieldStyle}>Old Password</label>
+                  <div className="input-wrapper">
+                    <span className="input-icon material-symbols-outlined">lock</span>
+                    <input className="rhetoric-input" type="password" name="oldPassword" value={form.oldPassword} onChange={onChange} placeholder="Current password" />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={fieldStyle}>New Password</label>
+                    <div className="input-wrapper">
+                      <span className="input-icon material-symbols-outlined">lock_open</span>
+                      <input className="rhetoric-input" type="password" name="newPassword" value={form.newPassword} onChange={onChange} placeholder="New password" />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 0 }}>
+                    <motion.button type="button" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                      onClick={requestPasswordOtp} className="btn-outline">
+                      Send OTP
+                    </motion.button>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-          <ListItem sx={{ px: 0, py: 1 }}>
-            <TextField id="profile-gender" select label="Gender" name="gender" autoComplete="sex" value={form.gender} onChange={onChange} fullWidth>
-              <MenuItem value="male">Male</MenuItem>
-              <MenuItem value="female">Female</MenuItem>
-              <MenuItem value="other">Other</MenuItem>
-              <MenuItem value="prefer_not_to_say">Prefer not to say</MenuItem>
-            </TextField>
-          </ListItem>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <motion.button type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                className="btn-ghost" onClick={() => navigate(-1)}>Cancel</motion.button>
+              <motion.button type="submit" disabled={saving} whileHover={{ scale: saving ? 1 : 1.02 }} whileTap={{ scale: 0.98 }}
+                className="btn-primary" style={{ padding: '12px 32px', opacity: saving ? 0.7 : 1 }}>
+                {saving ? 'Saving...' : 'Save Changes'}
+              </motion.button>
+            </div>
+          </motion.form>
+        </main>
+      </div>
 
-          <ListItem sx={{ px: 0, py: 1, gap: 1, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' } }}>
-            <TextField id="profile-phone" label="Mobile (+country code)" name="phone" autoComplete="tel" value={form.phone} onChange={onChange} fullWidth placeholder="+447700900123" />
-            <Button variant="outlined" onClick={requestPhoneOtp}>Verify phone</Button>
-          </ListItem>
-
-          <ListItem sx={{ px: 0, py: 1 }}>
-            <TextField id="profile-course" label="Course" name="course" autoComplete="off" value={form.course} onChange={onChange} fullWidth placeholder="MSc Computer Science" />
-          </ListItem>
-
-          <ListItem sx={{ px: 0, py: 1 }}>
-            <TextField id="profile-bio" label="Bio" name="bio" autoComplete="off" value={form.bio} onChange={onChange} fullWidth multiline minRows={3} />
-          </ListItem>
-
-          <ListItem sx={{ px: 0, py: 1.5 }}>
-            <Divider flexItem />
-          </ListItem>
-
-          <ListItem sx={{ px: 0, py: 0.2 }}>
-            <Typography variant="h6" fontWeight={700}>Change Password</Typography>
-          </ListItem>
-
-          <ListItem sx={{ px: 0, py: 1 }}>
-            <PasswordField id="profile-old-password" label="Old Password" name="oldPassword" autoComplete="current-password" value={form.oldPassword} onChange={onChange} fullWidth />
-          </ListItem>
-
-          <ListItem sx={{ px: 0, py: 1, gap: 1, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' } }}>
-            <PasswordField id="profile-new-password" label="New Password" name="newPassword" autoComplete="new-password" value={form.newPassword} onChange={onChange} fullWidth />
-            <Button variant="outlined" onClick={requestPasswordOtp}>Send OTP to email</Button>
-          </ListItem>
-        </List>
-
-        <Box mt={2} display="flex" justifyContent="flex-end" gap={1}>
-          <Button type="button" variant="outlined" size="large" onClick={onCancelChanges} disabled={saving}>
-            Cancel
-          </Button>
-          <Button type="submit" variant="contained" size="large" disabled={saving}>
-            {saving ? 'Saving…' : 'Save Changes'}
-          </Button>
-        </Box>
-        </Paper>
-      </Box>
-
-      <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Profile Picture</DialogTitle>
-        <DialogContent sx={{ display: 'flex', justifyContent: 'center' }}>
-          {avatarSrc ? (
-            <img
-              src={avatarSrc}
-              alt="Profile"
-              style={{ maxWidth: '100%', maxHeight: '75vh', borderRadius: 8 }}
-            />
-          ) : (
-            <Typography color="text.secondary">No profile picture.</Typography>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={otpOpen} onClose={() => setOtpOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>
-          {otpPurpose === 'change_email' ? 'Verify new email'
-            : otpPurpose === 'change_password' ? 'Verify password change'
-            : otpPurpose === 'change_phone' ? 'Verify phone number'
-            : 'Enter OTP'}
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            Enter the 6-digit code we just sent.
-          </Typography>
-          <TextField
-            id="profile-otp-code"
-            name="otpCode"
-            autoFocus
-            fullWidth
-            autoComplete="one-time-code"
-            inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 6 }}
-            placeholder="123456"
-            value={otpCode}
-            onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOtpOpen(false)}>Cancel</Button>
-          <Button variant="contained" disabled={verifying || otpCode.length < 4} onClick={verifyCurrentOtp}>
-            {verifying ? 'Verifying…' : 'Verify'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={deleteAvatarOpen} onClose={() => setDeleteAvatarOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Remove Profile Picture</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary">
-            Your current profile picture will be removed.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteAvatarOpen(false)}>Cancel</Button>
-          <Button color="error" variant="contained" onClick={onDeleteAvatar}>
-            Remove
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={2600}
-        onClose={() => setToast((p) => ({ ...p, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setToast((p) => ({ ...p, open: false }))}
-          severity={toast.severity}
-          sx={{ width: '100%' }}
-        >
-          {toast.message}
-        </Alert>
-      </Snackbar>
-    </PageShell>
+      <AnimatePresence>
+        {previewOpen && (
+          <Modal title="Profile Picture" onClose={() => setPreviewOpen(false)}>
+            <img src={avatarSrc} alt="Profile" style={{ maxWidth: '100%', borderRadius: 8 }} />
+          </Modal>
+        )}
+        {deleteAvatarOpen && (
+          <Modal title="Remove Profile Picture" onClose={() => setDeleteAvatarOpen(false)}>
+            <p style={{ color: 'var(--on-surface-variant)', marginBottom: 24 }}>Your current profile picture will be permanently removed.</p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button className="btn-ghost" onClick={() => setDeleteAvatarOpen(false)}>Cancel</button>
+              <button style={{ background: 'var(--error)', color: 'var(--on-error)', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 600, cursor: 'pointer' }}
+                onClick={onDeleteAvatar}>Remove</button>
+            </div>
+          </Modal>
+        )}
+        {otpModal.open && (
+          <Modal title={otpModal.purpose === 'change_email' ? 'Verify New Email' : 'Verify Password Change'} onClose={() => setOtpModal({ open: false, purpose: null, target: '' })}>
+            <p style={{ color: 'var(--on-surface-variant)', fontSize: 14, marginBottom: 16 }}>Enter the 6-digit code we sent to your registered email.</p>
+            <input className="rhetoric-input" style={{ paddingLeft: 16, marginBottom: 20, letterSpacing: '0.2em', fontSize: 20, textAlign: 'center' }}
+              placeholder="123456" value={otpCode} inputMode="numeric" maxLength={6}
+              onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} autoFocus />
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button className="btn-ghost" onClick={() => setOtpModal({ open: false, purpose: null, target: '' })}>Cancel</button>
+              <button className="btn-primary" disabled={verifying || otpCode.length < 4} onClick={verifyOtp}
+                style={{ opacity: verifying || otpCode.length < 4 ? 0.6 : 1 }}>
+                {verifying ? 'Verifying...' : 'Verify'}
+              </button>
+            </div>
+          </Modal>
+        )}
+        {toast && (
+          <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
+            style={{
+              position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 9999,
+              minWidth: 280, background: toast.type === 'error' ? 'rgba(93,0,10,0.95)' : 'rgba(0,52,74,0.95)',
+              backdropFilter: 'blur(12px)', border: `1px solid ${toast.type === 'error' ? 'rgba(255,180,171,0.3)' : 'rgba(56,189,248,0.3)'}`,
+              color: toast.type === 'error' ? 'var(--error)' : 'var(--primary)', borderRadius: 10,
+              padding: '12px 20px', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8
+            }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{toast.type === 'error' ? 'error' : 'check_circle'}</span>
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

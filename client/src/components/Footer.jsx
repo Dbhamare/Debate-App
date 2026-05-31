@@ -1,46 +1,29 @@
-import { Box, Link, Typography, Stack, IconButton } from "@mui/material";
-import { alpha, useTheme } from "@mui/material/styles";
-import GitHubIcon from '@mui/icons-material/GitHub';
-import TwitterIcon from '@mui/icons-material/Twitter';
-import EmailIcon from '@mui/icons-material/Email';
-import { Link as RouterLink } from 'react-router-dom';
-
+import { Link } from 'react-router-dom';
 export default function Footer() {
-  const theme = useTheme();
-  const isDark = theme.palette.mode === "dark";
-
   return (
-    <Box
-      sx={{
-        mt: 0,
-        py: 2.4,
-        px: 2,
-        bgcolor: isDark ? alpha("#06111e", 0.78) : alpha("#0f2e51", 0.86),
-        color: "#fff",
-        borderTop: `1px solid ${isDark ? alpha("#d7e7ff", 0.14) : alpha("#ffffff", 0.18)}`,
-        backdropFilter: "blur(8px)",
-      }}
-      component="footer"
-    >
-      <Stack direction="row" spacing={{ xs: 2, md: 4 }} justifyContent="center" mb={1.1} flexWrap="wrap">
-        <Link component={RouterLink} to="/about" color="inherit" underline="hover">About</Link>
-        <Link component={RouterLink} to="/features" color="inherit" underline="hover">Features</Link>
-        <Link component={RouterLink} to="/contact" color="inherit" underline="hover">Contact Us</Link>
-      </Stack>
-      <Stack direction="row" spacing={1} justifyContent="center">
-        <IconButton component="a" href="https://github.com/yourusername" target="_blank" color="inherit">
-          <GitHubIcon />
-        </IconButton>
-        <IconButton component="a" href="https://twitter.com/yourusername" target="_blank" color="inherit">
-          <TwitterIcon />
-        </IconButton>
-        <IconButton component="a" href="mailto:youremail@example.com" color="inherit">
-          <EmailIcon />
-        </IconButton>
-      </Stack>
-      <Typography variant="caption" align="center" display="block" mt={1}>
-        &copy; {new Date().getFullYear()} Debate Sessions Platform
-      </Typography>
-    </Box>
+    <footer style={{
+      borderTop: '1px solid rgba(255,255,255,0.05)',
+      background: 'rgba(2,6,23,0.9)',
+      padding: '32px 40px',
+      backdropFilter: 'blur(16px)'
+    }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+        <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 18, fontWeight: 800, color: 'var(--primary)' }}>RHETORIC</div>
+        <div style={{ display: 'flex', gap: 24 }}>
+          {[{ to: '/about', label: 'About' }, { to: '/features', label: 'Features' }, { to: '/contact', label: 'Contact' }].map(l => (
+            <Link key={l.to} to={l.to} style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, textDecoration: 'none', fontFamily: 'Space Grotesk',
+              transition: 'color 0.2s' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--primary)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.3)'}>
+              {l.label}
+            </Link>
+          ))}
+        </div>
+        <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12, fontFamily: 'Space Grotesk' }}>
+          © {new Date().getFullYear()} RHETORIC
+        </div>
+      </div>
+    </footer>
   );
 }

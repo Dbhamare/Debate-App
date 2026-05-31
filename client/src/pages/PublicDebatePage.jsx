@@ -1,17 +1,10 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
-import {
-  Box,
-  Typography,
-  Paper,
-  List,
-  ListItem,
-  Button,
-  CircularProgress
-} from "@mui/material";
+import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import socket from "../services/socket";
+import Sidebar from "../components/Sidebar";
 
 export default function PublicDebatePage() {
   const { joincode } = useParams();
@@ -19,6 +12,8 @@ export default function PublicDebatePage() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  const currentUser = JSON.parse(localStorage.getItem('user'));
 
   const listEndRefs = {
     proponent: useRef(null),
@@ -47,7 +42,7 @@ export default function PublicDebatePage() {
         setMessages(msgRes.data);
         setTimeout(() => {
           ["proponent", "neutral", "opponent"].forEach(scrollToBottom);
-        }, 100);
+        }, 300);
       } catch {
         setMessages([]);
       }
@@ -76,103 +71,157 @@ export default function PublicDebatePage() {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="70vh">
-        <CircularProgress />
-      </Box>
+      <div className="rhetoric-loader">
+        <div className="spinner" />
+      </div>
     );
   }
 
   if (!debate) {
     return (
-      <Box p={{ xs: 2, sm: 3, md: 4 }}>
-        <Typography variant="h4">Debate Not Found</Typography>
-      </Box>
+      <div className="page-transition" style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
+        <div className="ambient-bg"><div className="blob-1" /><div className="blob-2" /></div>
+        <Sidebar user={currentUser} />
+        <div className="rhetoric-main" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="glass-card" style={{ padding: 48, textAlign: 'center', borderRadius: 24 }}>
+             <h2 className="text-headline-lg" style={{ color: 'var(--error)', marginBottom: 16 }}>Debate Not Found</h2>
+             <button className="btn-primary" onClick={() => navigate('/')}>Return Home</button>
+          </div>
+        </div>
+      </div>
     );
   }
 
   const sides = ["proponent", "neutral", "opponent"];
+  const sideLabels = { proponent: "Proponent", neutral: "Neutral", opponent: "Opponent" };
   const sideColors = {
-    proponent: { bg: "#d4edda", border: "#c3e6cb" },
-    neutral: { bg: "#d1ecf1", border: "#bee5eb" },
-    opponent: { bg: "#f8d7da", border: "#f5c6cb" }
+    proponent: { bg: "rgba(136,169,146,0.05)", border: "rgba(136,169,146,0.2)", text: "#d7e9dc", accent: "#38bdf8" },
+    neutral: { bg: "rgba(142,166,191,0.03)", border: "rgba(142,166,191,0.15)", text: "#dce8f5", accent: "#bcc7de" },
+    opponent: { bg: "rgba(181,141,149,0.03)", border: "rgba(181,141,149,0.2)", text: "#f0dde1", accent: "#ff453a" }
   };
 
   return (
-    <Box p={{ xs: 2, sm: 3, md: 4 }}>
-      <Typography variant="h4" fontWeight="bold" textAlign="center" gutterBottom>
-        {debate.title}
-      </Typography>
-      <Typography variant="body1" color="text.secondary" textAlign="center" mb={4}>
-        {debate.description}
-      </Typography>
+    <div className="page-transition" style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
+      <div className="ambient-bg"><div className="blob-1" /><div className="blob-2" /></div>
+      <Sidebar user={currentUser} />
 
-      <Box
-        display="grid"
-        gap={2}
-        justifyContent="center"
-        sx={{ gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(300px, 1fr))' } }}
-      >
-        {sides.map(sideKey => {
-          const filteredMessages = messages.filter(msg => msg.side === sideKey);
-          return (
-            <Paper key={sideKey} sx={{
-              p: 2,
-              width: "100%",
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: { xs: 380, md: 770 }
-            }}>
-              <Typography variant="h6" gutterBottom textTransform="capitalize" textAlign="center">
-                {sideKey} Views
-              </Typography>
+      <main className="rhetoric-main">
+        <header className="rhetoric-topbar">
+          <div>
+            <h1 className="text-headline-md" style={{ color: 'var(--on-surface)' }}>{debate.title}</h1>
+            <p className="text-caption" style={{ color: 'var(--on-surface-variant)' }}>{debate.description}</p>
+          </div>
+          <div className="badge-live">
+            <div className="pulse-dot" />
+            LIVE SPECTATOR VIEW
+          </div>
+        </header>
 
-              <List sx={{ flexGrow: 1, overflowY: { xs: "visible", md: "auto" }, maxHeight: { xs: "none", md: 620 }, mb: 2 }}>
-                {filteredMessages.length === 0 ? (
-                  <Typography textAlign="center" color="text.secondary" sx={{ mt: 2 }}>
-                    No messages yet.
-                  </Typography>
-                ) : (
-                  filteredMessages.map((msg, idx) => (
-                    <ListItem key={msg._id || idx}>
-                      <Box
-                        sx={{
-                          bgcolor: sideColors[sideKey].bg,
-                          border: "1px solid",
-                          borderColor: sideColors[sideKey].border,
-                          color: "black",
-                          borderRadius: 2,
-                          p: 1.5,
-                          width: "100%",
-                          boxShadow: 1,
-                        }}
-                      >
-                        <Typography fontWeight="bold">
-                          {msg.senderName || msg.sender?.name || "Anonymous"}
-                        </Typography>
-                        <Typography>{msg.content}</Typography>
-                        <Typography variant="caption" sx={{ color: "black" }}>
-                          {format(new Date(msg.createdAt), "dd MMM yyyy | hh:mm a")}
-                        </Typography>
-                      </Box>
-                    </ListItem>
-                  ))
-                )}
-                <div ref={listEndRefs[sideKey]} />
-              </List>
-            </Paper>
-          );
-        })}
-      </Box>
+        <div style={{ padding: 24, flex: 1, display: 'flex', flexDirection: 'column', gap: 24, minHeight: 0 }}>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
+            gap: 16, 
+            flex: 1,
+            minHeight: 0
+          }}>
+            {sides.map(sideKey => {
+              const filteredMessages = messages.filter(msg => msg.side === sideKey);
+              const sc = sideColors[sideKey];
+              
+              return (
+                <motion.div 
+                  key={sideKey}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="glass-card"
+                  style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    borderRadius: 20,
+                    overflow: 'hidden',
+                    background: sc.bg,
+                    borderColor: sc.border
+                  }}
+                >
+                  <div style={{ 
+                    padding: '16px 20px', 
+                    borderBottom: `1px solid ${sc.border}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10
+                  }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: sc.accent }} />
+                    <h3 className="text-label-bold" style={{ color: sc.text, textTransform: 'uppercase' }}>
+                      {sideLabels[sideKey]} Views
+                    </h3>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, color: sc.text, opacity: 0.5 }}>
+                      {filteredMessages.length} msgs
+                    </span>
+                  </div>
 
-      <Paper sx={{ p: 3, mt: 4 }}>
-        <Typography variant="h6" mb={2}>
-          Want to Share Your Opinion?
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          <Button size="large" onClick={() => navigate("/login")}>Login</Button> or{" "}
-          <Button size="large" onClick={() => navigate("/register")}>Create a Free Account!</Button>
-        </Typography>
-      </Paper>
-    </Box>
+                  <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <AnimatePresence initial={false}>
+                      {filteredMessages.length === 0 ? (
+                        <div style={{ padding: 32, textAlign: 'center', opacity: 0.4, color: sc.text }}>
+                          No insights shared yet.
+                        </div>
+                      ) : (
+                        filteredMessages.map((msg, idx) => (
+                          <div 
+                            key={msg._id || idx}
+                            className="arena-message"
+                            style={{ 
+                              borderColor: sc.border,
+                              color: sc.text
+                            }}
+                          >
+                            <div className="message-meta">
+                              <span className="message-sender" style={{ color: sc.accent }}>
+                                {msg.senderName || msg.sender?.name || "Anonymous"}
+                              </span>
+                            </div>
+                            <p className="message-content" style={{ color: sc.text }}>
+                              {msg.content}
+                            </p>
+                            <div style={{ fontSize: 10, color: sc.text, opacity: 0.3 }}>
+                              {format(new Date(msg.createdAt), "hh:mm a · MMM dd, yyyy")}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </AnimatePresence>
+                    <div ref={listEndRefs[sideKey]} />
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          <motion.section 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="glass-panel"
+            style={{ padding: 32, borderRadius: 20, textAlign: 'center' }}
+          >
+            <h4 className="text-headline-md" style={{ marginBottom: 12 }}>Want to Share Your Opinion?</h4>
+            <p className="text-body-md" style={{ color: 'var(--on-surface-variant)', marginBottom: 24 }}>
+              Join the conversation and challenge perspectives in real-time.
+            </p>
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+              <button className="btn-primary" onClick={() => navigate("/login")}>
+                <span className="material-symbols-outlined">login</span>
+                Engage Now
+              </button>
+              <button className="btn-outline" onClick={() => navigate("/register")}>
+                Create Secure Account
+              </button>
+            </div>
+          </motion.section>
+        </div>
+      </main>
+    </div>
   );
 }

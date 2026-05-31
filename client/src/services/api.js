@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const apiOrigin = (import.meta.env.VITE_API_ORIGIN || (import.meta.env.DEV ? 'http://localhost:5000' : '')).replace(/\/+$/, '');
+const apiOrigin = import.meta.env.VITE_API_ORIGIN ? import.meta.env.VITE_API_ORIGIN.replace(/\/+$/, '') : (import.meta.env.DEV ? '' : '');
 
 if (import.meta.env.PROD && !apiOrigin) {
   console.error('Missing VITE_API_ORIGIN. Set it to the deployed backend URL before building the frontend.');

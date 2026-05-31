@@ -1,6 +1,5 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Box, CircularProgress } from '@mui/material';
 
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -23,12 +22,12 @@ const InstructorCreateDebate = lazy(() => import('./pages/InstructorCreateDebate
 const InstructorManageDebate = lazy(() => import('./pages/InstructorManageDebate'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
 
-function getCurrentUser() {
-  try {
-    return JSON.parse(localStorage.getItem('user') || 'null');
-  } catch {
-    return null;
-  }
+function LoadingFallback() {
+  return (
+    <div className="rhetoric-loader">
+      <div className="spinner" />
+    </div>
+  );
 }
 
 function RequireAuth({ children }) {
@@ -38,51 +37,32 @@ function RequireAuth({ children }) {
 
 function RequireRole({ roles, children, fallback = '/dashboard' }) {
   const token = localStorage.getItem('token');
-  const user = getCurrentUser();
+  let user = null;
+  try { user = JSON.parse(localStorage.getItem('user') || 'null'); } catch {}
   if (!token || !user) return <Navigate to="/login" replace />;
   if (!roles.includes(user.role)) return <Navigate to={fallback} replace />;
   return children;
 }
 
-export default function AppRoutes({ mode, onToggleMode, fontScale, onFontScaleChange }) {
+export default function AppRoutes() {
   return (
-    <Suspense
-      fallback={
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
-          <CircularProgress />
-        </Box>
-      }
-    >
+    <Suspense fallback={<LoadingFallback />}>
       <Routes>
-        <Route
-          path="/"
-          element={
-            <LandingPage
-              mode={mode}
-              onToggleMode={onToggleMode}
-              fontScale={fontScale}
-              onFontScaleChange={onFontScaleChange}
-            />
-          }
-        />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
         <Route path="*" element={<NotFoundPage />} />
-
         <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route path="/admin/dashboard" element={<RequireRole roles={['admin']} fallback="/dashboard"><AdminDashboard /></RequireRole>} />
-
         <Route path="/debates" element={<RequireAuth><DebatesListPage /></RequireAuth>} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/features" element={<FeaturesPage />} />
         <Route path="/contact" element={<ContactPage />} />
-
         <Route path="/debate/:joincode" element={<RequireAuth><DebatePage /></RequireAuth>} />
         <Route path="/public/debate/:joincode" element={<PublicDebatePage />} />
-
         <Route path="/instructor/dashboard" element={<RequireRole roles={['instructor', 'admin']} fallback="/dashboard"><InstructorDashboard /></RequireRole>} />
         <Route path="/instructor/create-debate" element={<RequireRole roles={['instructor', 'admin']} fallback="/dashboard"><InstructorCreateDebate /></RequireRole>} />
         <Route path="/instructor/debate/:joincode/manage" element={<RequireRole roles={['instructor', 'admin']} fallback="/dashboard"><InstructorManageDebate /></RequireRole>} />

@@ -1,14 +1,3 @@
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  Avatar,
-  Typography,
-  Stack,
-  DialogActions,
-  Button,
-  Dialog as MuiDialog
-} from '@mui/material';
 import api from '../services/api';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -20,80 +9,66 @@ export default function PublicProfileDialog({ open, onClose, userID, isAnonymous
 
   const blockOpen = useMemo(() => {
     if (isAnonymous) return true;
-    const v = userID;
-    if (v === null || v === undefined) return true;
-    if (typeof v === 'number' && (v <= 0 || !Number.isFinite(v))) return true; // e.g., 0, -1
-    if (typeof v === 'string' && ['anonymous', 'anon', 'anonym'].includes(v.toLowerCase())) return true;
+    if (userID === null || userID === undefined) return true;
+    if (typeof userID === 'number' && (userID <= 0 || !Number.isFinite(userID))) return true;
+    if (typeof userID === 'string' && ['anonymous', 'anon', 'anonym'].includes(userID.toLowerCase())) return true;
     return false;
   }, [isAnonymous, userID]);
 
-  useEffect(() => {
-    if (open && blockOpen) {
-      setProfile(null);
-      onClose?.();
-    }
-  }, [open, blockOpen, onClose]);
+  useEffect(() => { if (open && blockOpen) { setProfile(null); onClose?.(); } }, [open, blockOpen, onClose]);
 
   useEffect(() => {
-    if (!open || blockOpen) return;
-    if (!userID) return;
-
+    if (!open || blockOpen || !userID) return;
     (async () => {
-      try {
-        const { data } = await api.get(`/profile/public/${userID}`);
-        setProfile(data);
-      } catch {
-        setProfile(null);
-      }
+      try { const { data } = await api.get(`/profile/public/${userID}`); setProfile(data); }
+      catch { setProfile(null); }
     })();
   }, [open, userID, blockOpen]);
 
-  const avatarSrc = profile?.avatarUrl ? `${API_ORIGIN}${profile.avatarUrl}` : undefined;
+  const avatarSrc = profile?.avatarUrl ? `${API_ORIGIN}${profile.avatarUrl}` : null;
   const fallback = profile?.name?.[0]?.toUpperCase() || 'U';
 
   if (!open || blockOpen) return null;
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-        <DialogTitle>Profile</DialogTitle>
-        <DialogContent>
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+        zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        onClick={e => e.target === e.currentTarget && onClose()}>
+        <div style={{ background: 'var(--surface-container)', border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 16, padding: 32, maxWidth: 380, width: '100%', textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <h3 style={{ fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: 700, color: 'var(--on-surface)' }}>Profile</h3>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--outline)', fontSize: 22 }}>×</button>
+          </div>
           {profile ? (
-            <Stack spacing={1} alignItems="center">
-              <Avatar
-                src={avatarSrc}
-                sx={{ width: 72, height: 72, cursor: avatarSrc ? 'zoom-in' : 'default' }}
-                onClick={() => avatarSrc && setZoom(true)}
-              >
-                {fallback}
-              </Avatar>
-              <Typography variant="h6">{profile.name}</Typography>
-              {profile.course && <Typography color="text.secondary">{profile.course}</Typography>}
-              {profile.bio && <Typography sx={{ mt: 1, whiteSpace: 'pre-wrap' }}>{profile.bio}</Typography>}
-            </Stack>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 80, height: 80, borderRadius: '50%',
+                background: avatarSrc ? `url(${avatarSrc}) center/cover` : 'rgba(56,189,248,0.15)',
+                border: '2px solid rgba(56,189,248,0.3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--primary)', fontWeight: 700, fontSize: 28, fontFamily: 'Space Grotesk',
+                cursor: avatarSrc ? 'zoom-in' : 'default'
+              }} onClick={() => avatarSrc && setZoom(true)}>
+                {!avatarSrc && fallback}
+              </div>
+              <h4 style={{ fontFamily: 'Space Grotesk', fontSize: 22, fontWeight: 700, color: 'var(--on-surface)' }}>{profile.name}</h4>
+              {profile.course && <p style={{ color: 'var(--on-surface-variant)', fontSize: 14 }}>{profile.course}</p>}
+              {profile.bio && <p style={{ color: 'var(--on-surface-variant)', fontSize: 14, lineHeight: 1.5, textAlign: 'left', whiteSpace: 'pre-wrap' }}>{profile.bio}</p>}
+            </div>
           ) : (
-            <Typography color="text.secondary">No public profile found.</Typography>
+            <p style={{ color: 'var(--on-surface-variant)' }}>No public profile found.</p>
           )}
-        </DialogContent>
-      </Dialog>
-
-      <MuiDialog open={zoom} onClose={() => setZoom(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Profile Picture</DialogTitle>
-        <DialogContent sx={{ display: 'flex', justifyContent: 'center' }}>
-          {avatarSrc ? (
-            <img
-              src={avatarSrc}
-              alt="Profile"
-              style={{ maxWidth: '100%', maxHeight: '75vh', borderRadius: 8 }}
-            />
-          ) : (
-            <Typography color="text.secondary">No profile picture.</Typography>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setZoom(false)}>Close</Button>
-        </DialogActions>
-      </MuiDialog>
+        </div>
+      </div>
+      {zoom && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 300,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+          onClick={() => setZoom(false)}>
+          <img src={avatarSrc} alt="Profile" style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 8 }} />
+        </div>
+      )}
     </>
   );
 }
