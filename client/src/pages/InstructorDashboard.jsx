@@ -77,6 +77,13 @@ export default function InstructorDashboard() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, joincode: '' });
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const navigate = useNavigate();
   const location = useLocation();
   const user = (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })();
@@ -155,7 +162,7 @@ export default function InstructorDashboard() {
           </div>
         </header>
 
-        <main style={{ flex: 1, padding: '40px 32px', position: 'relative', overflowY: 'auto', minHeight: 0 }}>
+        <main style={{ flex: 1, padding: isMobile ? '24px 16px' : '40px 32px', position: 'relative', overflowY: 'auto', minHeight: 0 }}>
           {/* Hero section */}
           <motion.section
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -169,7 +176,7 @@ export default function InstructorDashboard() {
               background: 'linear-gradient(to right, var(--surface-container), rgba(23,31,51,0.5), transparent)',
               zIndex: 1
             }} />
-            <div style={{ position: 'relative', zIndex: 2, padding: '40px 48px' }}>
+            <div style={{ position: 'relative', zIndex: 2, padding: isMobile ? '24px 20px' : '40px 48px' }}>
               <h1 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 40, fontWeight: 800,
                 color: 'var(--on-surface)', letterSpacing: '-0.02em', marginBottom: 8 }}>
                 Instructor Dashboard
@@ -184,7 +191,7 @@ export default function InstructorDashboard() {
           <motion.div
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 40 }}>
+            style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 20, marginBottom: 40 }}>
             {[
               { label: 'Active Debates', value: liveCount, icon: 'record_voice_over', trend: 'Live now' },
               { label: 'Total Sessions', value: debatesList.length, icon: 'forum', trend: 'All time' },
@@ -251,7 +258,15 @@ export default function InstructorDashboard() {
                       transition={{ delay: i * 0.07 }}
                       style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}>
                       <div className="left-accent" style={{ background: isLive ? 'var(--primary)' : 'var(--outline-variant)' }} />
-                      <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, paddingLeft: 16 }}>
+                      <div style={{
+                        width: '100%',
+                        display: 'flex',
+                        flexDirection: isMobile ? 'column' : 'row',
+                        justifyContent: 'space-between',
+                        alignItems: isMobile ? 'stretch' : 'flex-start',
+                        gap: 16,
+                        paddingLeft: isMobile ? 0 : 16
+                      }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                             <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 20, fontWeight: 600,
@@ -282,7 +297,14 @@ export default function InstructorDashboard() {
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        <div style={{
+                          display: 'flex',
+                          gap: 8,
+                          flexShrink: 0,
+                          flexWrap: 'wrap',
+                          justifyContent: isMobile ? 'flex-start' : 'flex-end',
+                          marginTop: isMobile ? 8 : 0
+                        }}>
                           <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
                             className="btn-ghost" style={{ padding: '8px 16px', fontSize: 13 }}
                             onClick={() => navigate(`/debate/${debate.joincode}`)}>

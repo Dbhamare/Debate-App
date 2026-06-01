@@ -56,6 +56,13 @@ export default function AdminDashboard() {
   const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', action: null });
   const [toast, setToast] = useState(null);
   const [search, setSearch] = useState('');
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const location = useLocation();
   const user = (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })();
 
@@ -147,7 +154,7 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        <main style={{ flex: 1, padding: '40px 32px', overflowY: 'auto', minHeight: 0 }}>
+        <main style={{ flex: 1, padding: isMobile ? '24px 16px' : '40px 32px', overflowY: 'auto', minHeight: 0 }}>
           {/* Hero */}
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 40 }}>
             <div style={{ position: 'absolute', top: 0, left: '25%', width: 600, height: 400,
@@ -161,7 +168,7 @@ export default function AdminDashboard() {
 
           {/* Metrics */}
           <motion.div id="analytics" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 40, scrollMarginTop: 100 }}>
+            style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(auto-fit, minmax(180px, 1fr))' : 'repeat(4, 1fr)', gap: 20, marginBottom: 40, scrollMarginTop: 100 }}>
             {[
               { label: 'Active Users', value: usersList.length, icon: 'monitoring', color: 'primary', trend: '+12% this week' },
               { label: 'Live Debates', value: debatesList.filter(d => d.status === 'active' || d.status === 'live').length, icon: null, color: 'error', trend: 'Peak engagement' },
@@ -201,7 +208,7 @@ export default function AdminDashboard() {
           </motion.div>
 
           {/* Users Table */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: 24 }}>
             <motion.div id="users" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
               style={{
                 background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)',

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
@@ -25,6 +26,13 @@ const adminNavLinks = [
 export default function Sidebar({ user }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const getNavLinks = () => {
     if (!user) return studentNavLinks;
@@ -57,7 +65,12 @@ export default function Sidebar({ user }) {
         <span className="material-symbols-outlined">menu</span>
       </button>
 
-      <motion.nav className="rhetoric-sidebar" variants={sidebarVariants} initial="hidden" animate="visible">
+      <motion.nav
+        className="rhetoric-sidebar"
+        variants={isMobile ? {} : sidebarVariants}
+        initial={isMobile ? false : "hidden"}
+        animate={isMobile ? false : "visible"}
+      >
         {/* Brand */}
         <div style={{ padding: '0 24px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1 

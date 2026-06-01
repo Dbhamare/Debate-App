@@ -80,6 +80,13 @@ export default function DashboardPage() {
   const [joinCode, setJoinCode] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const navigate = useNavigate();
   const user = (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })();
   const currentUser = user;
@@ -384,7 +391,7 @@ export default function DashboardPage() {
               />
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 16, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: isMobile ? 0 : 16, flexShrink: 0, flexWrap: 'wrap' }}>
             {/* Join by code */}
             <form onSubmit={e => { e.preventDefault(); handleJoin(); }}
               style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -540,7 +547,7 @@ export default function DashboardPage() {
         </header>
 
         {/* Content */}
-        <main style={{ flex: 1, padding: '40px 32px', maxWidth: '100%', width: '100%', overflowY: 'auto', minHeight: 0 }}>
+        <main style={{ flex: 1, padding: isMobile ? '24px 16px' : '40px 32px', maxWidth: '100%', width: '100%', overflowY: 'auto', minHeight: 0 }}>
           <motion.div variants={fadeUp} custom={0} initial="hidden" animate="visible" style={{ marginBottom: 40 }}>
             <h1 style={{
               fontFamily: 'Space Grotesk, sans-serif', fontSize: 36, fontWeight: 700,
@@ -572,7 +579,7 @@ export default function DashboardPage() {
             <motion.div
               variants={{ visible: { transition: { staggerChildren: 0.07 } } }}
               initial="hidden" animate="visible"
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}>
               {filtered.map((debate, i) => (
                 <DebateCard key={debate.joincode} debate={debate} index={i} onJoin={handleJoin} />
               ))}
