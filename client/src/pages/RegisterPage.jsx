@@ -89,8 +89,8 @@ export default function RegisterPage() {
         }}>
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           style={{ textAlign: 'center', marginBottom: 32 }}>
-          <h1 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 38, fontWeight: 800,
-            letterSpacing: '-0.02em', color: 'var(--primary)', marginBottom: 8 }}>RHETORIC</h1>
+          <h1 className="branding-logo" style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 38, fontWeight: 800,
+            letterSpacing: '-0.02em', color: 'var(--primary)', marginBottom: 8 }} onClick={() => navigate('/')}>RHETORIC</h1>
           <p style={{ color: 'var(--on-surface-variant)', fontSize: 14 }}>Request Access — Create your account</p>
         </motion.div>
 
