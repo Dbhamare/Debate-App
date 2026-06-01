@@ -264,17 +264,47 @@ function getTransporter() {
 async function sendEmail(to, subject, content) {
   const provider = resolveEmailProvider();
 
-  if (provider === 'gmail') {
-    return sendWithGmail(buildMailOptions(to, subject, content, resolveGmailFromAddress()));
-  }
+  try {
+    if (provider === 'gmail') {
+      return await sendWithGmail(buildMailOptions(to, subject, content, resolveGmailFromAddress()));
+    }
 
-  if (provider === 'resend') {
-    return sendWithResend(buildMailOptions(to, subject, content, resolveApiFromAddress()));
-  }
+    if (provider === 'resend') {
+      return await sendWithResend(buildMailOptions(to, subject, content, resolveApiFromAddress()));
+    }
 
-  const t = getTransporter();
-  const mailOptions = buildMailOptions(to, subject, content, t._from);
-  return t.sendMail(mailOptions);
+    const t = getTransporter();
+    const mailOptions = buildMailOptions(to, subject, content, t._from);
+    return await t.sendMail(mailOptions);
+  } catch (error) {
+    console.error('Email sending failed:', error);
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(`\n======================================================`);
+      console.warn(`!!! [EMAIL WORKAROUND] SMTP/API Email Sending Failed !!!`);
+      console.warn(`To: ${to}`);
+      console.warn(`Subject: ${subject}`);
+
+      const isObjectContent = content && typeof content === 'object';
+      const htmlOrText = isObjectContent ? content.html || content.text || '' : content;
+      const otpMatch = String(htmlOrText).match(/<b>(\d+)<\/b>/) || String(htmlOrText).match(/code is:\s*(\d+)/i) || String(htmlOrText).match(/(\d{4,8})/);
+      
+      if (otpMatch) {
+        console.warn(`>>> RETRIEVED VERIFICATION CODE: ${otpMatch[1]} <<<`);
+      }
+
+      const urlMatch = String(htmlOrText).match(/https?:\/\/[^\s"'<>]+/);
+      if (urlMatch) {
+        console.warn(`>>> RETRIEVED LINK: ${urlMatch[0]} <<<`);
+      }
+
+      console.warn(`======================================================\n`);
+
+      return { accepted: [to], mock: true };
+    }
+
+    throw error;
+  }
 }
 
 module.exports = { sendEmail, resolveFromAddress, sendWithGmail, sendWithResend };

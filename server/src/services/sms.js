@@ -12,12 +12,28 @@ function getTwilio() {
 }
 
 async function sendSms(to, body) {
-  const { client, from } = getTwilio();
-  if (!client) {
-    console.log('[SMS:FALLBACK]', { to, body });
-    return { sid: 'console-fallback' };
+  try {
+    const { client, from } = getTwilio();
+    if (!client) {
+      console.log('[SMS:FALLBACK]', { to, body });
+      return { sid: 'console-fallback' };
+    }
+    return await client.messages.create({ to, from, body });
+  } catch (error) {
+    console.error('SMS sending failed:', error);
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(`\n======================================================`);
+      console.warn(`!!! [SMS WORKAROUND] Twilio SMS Sending Failed !!!`);
+      console.warn(`To: ${to}`);
+      console.warn(`Body: ${body}`);
+      console.warn(`======================================================\n`);
+
+      return { sid: 'mock-error-fallback', mock: true };
+    }
+
+    throw error;
   }
-  return client.messages.create({ to, from, body });
 }
 
 module.exports = { sendSms };

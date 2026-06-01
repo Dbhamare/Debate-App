@@ -66,7 +66,7 @@ router.post('/register/email/request', validate({ body: otpSchemas.registerReque
     res.json({ ok: true });
   } catch (err) {
     console.error('register/email/request error:', err);
-    res.status(500).json({ message: 'Failed to send email OTP' });
+    res.status(500).json({ message: `Failed to send email OTP: ${err.message}` });
   }
 });
 
@@ -114,7 +114,7 @@ router.post('/profile/email/request', auth, validate({ body: otpSchemas.profileE
     res.json({ ok: true });
   } catch (e) {
     console.error('profile/email/request error:', e);
-    res.status(500).json({ message: 'Failed to send email OTP' });
+    res.status(500).json({ message: `Failed to send email OTP: ${e.message}` });
   }
 });
 
@@ -155,7 +155,7 @@ router.post('/profile/password/request', auth, async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     console.error('profile/password/request error:', e);
-    res.status(500).json({ message: 'Failed to send OTP' });
+    res.status(500).json({ message: `Failed to send OTP: ${e.message}` });
   }
 });
 
