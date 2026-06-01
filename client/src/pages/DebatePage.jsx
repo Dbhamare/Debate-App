@@ -60,6 +60,16 @@ export default function DebatePage() {
   const isCompactActions = window.innerWidth < 600;
 
   const [debate, setDebate] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [activeMobileTab, setActiveMobileTab] = useState('proponent');
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [messages, setMessages] = useState([]);
   const [inputs, setInputs] = useState({ proponent: '', neutral: '', opponent: '' });
   const [anonBySide, setAnonBySide] = useState({ proponent: false, neutral: false, opponent: false });
@@ -154,6 +164,15 @@ export default function DebatePage() {
     );
     return hit?.name || null;
   };
+
+  useEffect(() => {
+    if (debate && currentUser) {
+      const side = getAssignedSide();
+      if (side) {
+        setActiveMobileTab(side);
+      }
+    }
+  }, [debate]);
 
   const canPost = (sideKey) => {
     if (!debate) return false;
@@ -689,7 +708,7 @@ export default function DebatePage() {
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, flexWrap: 'wrap' }}>
             <button 
               className={`vote-button ${myVote === 'proponent' ? 'active' : ''}`}
               onClick={() => castVote('proponent')} 
@@ -705,7 +724,7 @@ export default function DebatePage() {
               OPP {votes.opponent}
             </button>
             
-            <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.1)', margin: '0 8px' }} />
+            <div className="topbar-divider" />
 
             {isInstructorOwner && (
               <>
@@ -752,15 +771,98 @@ export default function DebatePage() {
           )}
         </AnimatePresence>
 
+        {/* Tactical Feed Mobile Tabs */}
+        {isMobile && (
+          <div style={{
+            display: 'flex',
+            background: 'var(--surface-container-low)',
+            borderBottom: '1px solid rgba(255,255,255,0.08)',
+            padding: '4px',
+            gap: 4,
+            zIndex: 10
+          }}>
+            {sides.map(sideKey => {
+              const sc = sideColors[sideKey];
+              const isActive = activeMobileTab === sideKey;
+              const pts = computeSideTallies(messages, sideKey).points;
+              return (
+                <button
+                  key={sideKey}
+                  onClick={() => {
+                    setActiveMobileTab(sideKey);
+                    setTimeout(() => scrollToBottom(sideKey), 50);
+                  }}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '8px 4px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: isActive ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+                    color: isActive ? '#fff' : 'var(--on-surface-variant)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    position: 'relative'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: sc.accent }} />
+                    <span style={{ fontSize: '13px', fontWeight: isActive ? 700 : 500, fontFamily: 'Space Grotesk, sans-serif' }}>
+                      {sideLabel[sideKey]}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '10px', opacity: 0.8, color: isActive ? sc.accent : 'var(--on-surface-variant)' }}>
+                    {pts} pts
+                  </span>
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeTabUnderline"
+                      style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: '10%',
+                        right: '10%',
+                        height: 2,
+                        background: sc.accent,
+                        borderRadius: '99px'
+                      }}
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Tactical Feed */}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', minHeight: 0 }}>
+        <div style={{
+          flex: 1,
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+          gap: 1,
+          background: 'rgba(255,255,255,0.05)',
+          minHeight: 0
+        }}>
           {sides.map(sideKey => {
             const topLevel = messages.filter(m => m.side === sideKey && !m.replyTo).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
             const sc = sideColors[sideKey];
             const isActiveSide = assignedSide === sideKey;
 
             return (
-              <div key={sideKey} style={{ display: 'flex', flexDirection: 'column', background: 'var(--background)', position: 'relative', height: '100%', overflow: 'hidden' }}>
+              <div
+                key={sideKey}
+                style={{
+                  display: isMobile && activeMobileTab !== sideKey ? 'none' : 'flex',
+                  flexDirection: 'column',
+                  background: 'var(--background)',
+                  position: 'relative',
+                  height: '100%',
+                  overflow: 'hidden'
+                }}
+              >
                 <div style={{ padding: '16px 20px', borderBottom: `1px solid ${sc.border}`, display: 'flex', alignItems: 'center', gap: 10, background: sc.bg }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: sc.accent }} />
                   <span className="text-label-bold" style={{ color: sc.text, textTransform: 'uppercase' }}>{sideLabel[sideKey]}</span>

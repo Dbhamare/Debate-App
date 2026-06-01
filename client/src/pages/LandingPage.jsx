@@ -43,6 +43,14 @@ export default function LandingPage() {
   const [debates, setDebates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('explore'); // 'explore' | 'live' | 'archive'
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const user = (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })();
 
@@ -94,53 +102,160 @@ export default function LandingPage() {
         style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 40px', height: 80
+          padding: isMobile ? '0 24px' : '0 40px', height: 80
         }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 48 }}>
-          <span className="branding-logo" style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>RHETORIC</span>
-          <div style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
-            {['Explore', 'Live', 'Leaderboard', 'Archive'].map(item => (
-              <button key={item}
-                onClick={() => handleNavClick(item)}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  fontFamily: 'Space Grotesk, sans-serif', fontSize: 12, fontWeight: 700,
-                  letterSpacing: '0.1em', textTransform: 'uppercase',
-                  color: 'rgba(255,255,255,0.4)', transition: 'color 0.2s'
-                }}
-                onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.9)'}
-                onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}>
-                {item}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          {user ? (
-            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-              className="btn-primary" onClick={() => {
-                if (user.role === 'admin') navigate('/admin/dashboard');
-                else if (user.role === 'instructor') navigate('/instructor/dashboard');
-                else navigate('/dashboard');
-              }}>
-              Go to Dashboard
-            </motion.button>
-          ) : (
-            <>
-              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                className="btn-ghost" onClick={() => navigate('/login')}>Sign In</motion.button>
-              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                className="btn-primary" onClick={() => navigate('/register')}>
-                Start Debate
-              </motion.button>
-            </>
+          <span className="branding-logo" style={{ cursor: 'pointer' }} onClick={() => { setMobileMenuOpen(false); navigate('/'); }}>RHETORIC</span>
+          {!isMobile && (
+            <div style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
+              {['Explore', 'Live', 'Leaderboard', 'Archive'].map(item => (
+                <button key={item}
+                  onClick={() => handleNavClick(item)}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontFamily: 'Space Grotesk, sans-serif', fontSize: 12, fontWeight: 700,
+                    letterSpacing: '0.1em', textTransform: 'uppercase',
+                    color: 'rgba(255,255,255,0.4)', transition: 'color 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.9)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}>
+                  {item}
+                </button>
+              ))}
+            </div>
           )}
         </div>
+        {!isMobile ? (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            {user ? (
+              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                className="btn-primary" onClick={() => {
+                  if (user.role === 'admin') navigate('/admin/dashboard');
+                  else if (user.role === 'instructor') navigate('/instructor/dashboard');
+                  else navigate('/dashboard');
+                }}>
+                Go to Dashboard
+              </motion.button>
+            ) : (
+              <>
+                <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                  className="btn-ghost" onClick={() => navigate('/login')}>Sign In</motion.button>
+                <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                  className="btn-primary" onClick={() => navigate('/register')}>
+                  Start Debate
+                </motion.button>
+              </>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => setMobileMenuOpen(prev => !prev)}
+            style={{
+              background: 'none', border: 'none', color: 'var(--on-surface)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 4
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 28 }}>
+              {mobileMenuOpen ? 'close' : 'menu'}
+            </span>
+          </button>
+        )}
       </motion.nav>
+
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {isMobile && mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            style={{
+              position: 'fixed', top: 80, left: 0, right: 0, bottom: 0,
+              background: 'rgba(11, 19, 38, 0.95)', backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)', zIndex: 45,
+              display: 'flex', flexDirection: 'column', padding: '32px 24px',
+              gap: 32, borderTop: '1px solid rgba(255, 255, 255, 0.08)'
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              {['Explore', 'Live', 'Leaderboard', 'Archive'].map((item, idx) => (
+                <motion.button
+                  key={item}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleNavClick(item);
+                  }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontFamily: 'Space Grotesk, sans-serif', fontSize: 18, fontWeight: 700,
+                    letterSpacing: '0.1em', textTransform: 'uppercase',
+                    color: 'var(--on-surface)', textAlign: 'left', display: 'flex',
+                    alignItems: 'center', gap: 12
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ color: 'var(--primary)', fontSize: 20 }}>
+                    {item === 'Explore' ? 'travel_explore' :
+                     item === 'Live' ? 'sensors' :
+                     item === 'Leaderboard' ? 'leaderboard' : 'archive'}
+                  </span>
+                  {item}
+                </motion.button>
+              ))}
+            </div>
+
+            <div style={{ height: 1, background: 'rgba(255, 255, 255, 0.08)', width: '100%' }} />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {user ? (
+                <button
+                  className="btn-primary"
+                  style={{ width: '100%', justifyContent: 'center', padding: '12px 24px' }}
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    if (user.role === 'admin') navigate('/admin/dashboard');
+                    else if (user.role === 'instructor') navigate('/instructor/dashboard');
+                    else navigate('/dashboard');
+                  }}
+                >
+                  Go to Dashboard
+                </button>
+              ) : (
+                <>
+                  <button
+                    className="btn-ghost"
+                    style={{ width: '100%', justifyContent: 'center', padding: '12px 24px' }}
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      navigate('/login');
+                    }}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    className="btn-primary"
+                    style={{ width: '100%', justifyContent: 'center', padding: '12px 24px' }}
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      navigate('/register');
+                    }}
+                  >
+                    Start Debate
+                  </button>
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Hero */}
       <section style={{
-        position: 'relative', minHeight: '90vh', display: 'flex', alignItems: 'center',
+        position: 'relative', minHeight: isMobile ? '80vh' : '90vh', display: 'flex', alignItems: 'center',
         justifyContent: 'center', paddingTop: 80, overflow: 'hidden'
       }}>
         <div style={{
@@ -157,13 +272,13 @@ export default function LandingPage() {
 
         <div style={{
           position: 'relative', zIndex: 2, textAlign: 'center',
-          maxWidth: 900, margin: '0 auto', padding: '80px 32px 64px'
+          maxWidth: 900, margin: '0 auto', padding: isMobile ? '40px 16px 32px' : '80px 32px 64px'
         }}>
           <motion.h1
             initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
             style={{
-              fontFamily: 'Space Grotesk, sans-serif', fontSize: 'clamp(44px, 8vw, 88px)',
+              fontFamily: 'Space Grotesk, sans-serif', fontSize: isMobile ? '38px' : 'clamp(44px, 8vw, 88px)',
               fontWeight: 900, lineHeight: 1.05, letterSpacing: '-0.03em',
               color: 'var(--on-surface)', marginBottom: 24
             }}>
@@ -179,8 +294,8 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
             style={{
-              color: 'var(--on-surface-variant)', fontSize: 20, lineHeight: 1.6,
-              maxWidth: 640, margin: '0 auto 48px'
+              color: 'var(--on-surface-variant)', fontSize: isMobile ? 16 : 20, lineHeight: 1.6,
+              maxWidth: 640, margin: isMobile ? '0 auto 32px' : '0 auto 48px'
             }}>
             The premier platform for high-stakes intellectual discourse. Engage in rigorous debate,
             challenge prevailing narratives, and elevate your rhetorical mastery.
@@ -193,7 +308,7 @@ export default function LandingPage() {
             transition={{ duration: 0.6, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
             style={{
               display: 'inline-flex', flexDirection: 'column', alignItems: 'center',
-              gap: 16, padding: 48, borderRadius: 24,
+              gap: 16, padding: isMobile ? '32px 20px' : 48, borderRadius: 24,
               background: 'rgba(255,255,255,0.03)',
               backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
               border: '1px solid rgba(255,255,255,0.08)',
@@ -216,7 +331,7 @@ export default function LandingPage() {
               whileHover={{ scale: 1.04, boxShadow: '0 0 30px rgba(56,189,248,0.5)' }}
               whileTap={{ scale: 0.96 }}
               className="btn-primary"
-              style={{ fontSize: 16, padding: '14px 48px', borderRadius: 999 }}
+              style={{ fontSize: 16, padding: isMobile ? '12px 32px' : '14px 48px', borderRadius: 999 }}
               onClick={() => navigate(user ? '/dashboard' : '/register')}>
               Join the Arena
             </motion.button>
@@ -225,7 +340,7 @@ export default function LandingPage() {
       </section>
 
       {/* Discourse Arenas Section */}
-      <section id="active-arenas" style={{ padding: '80px 40px', maxWidth: 1200, margin: '0 auto', width: '100%', position: 'relative', zIndex: 2 }}>
+      <section id="active-arenas" style={{ padding: isMobile ? '40px 16px' : '80px 40px', maxWidth: 1200, margin: '0 auto', width: '100%', position: 'relative', zIndex: 2 }}>
         <motion.div
           initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }} transition={{ duration: 0.5 }}
@@ -248,7 +363,7 @@ export default function LandingPage() {
                 </span>
               </div>
               <h2 style={{
-                fontFamily: 'Space Grotesk, sans-serif', fontSize: 40, fontWeight: 700,
+                fontFamily: 'Space Grotesk, sans-serif', fontSize: isMobile ? 32 : 40, fontWeight: 700,
                 color: 'var(--on-surface)', letterSpacing: '-0.02em'
               }}>
                 {activeTab === 'live' ? 'Active Arenas' : activeTab === 'archive' ? 'Archived Arenas' : 'Explore Arenas'}
@@ -258,7 +373,8 @@ export default function LandingPage() {
             {/* Tab Controls */}
             <div style={{
               display: 'flex', gap: 8, background: 'rgba(255, 255, 255, 0.03)',
-              padding: 4, borderRadius: 12, border: '1px solid rgba(255, 255, 255, 0.05)'
+              padding: 4, borderRadius: 12, border: '1px solid rgba(255, 255, 255, 0.05)',
+              width: isMobile ? '100%' : 'auto'
             }}>
               {[
                 { id: 'explore', label: 'Explore' },
@@ -278,7 +394,8 @@ export default function LandingPage() {
                     fontWeight: 700,
                     color: activeTab === tab.id ? 'var(--primary)' : 'rgba(255, 255, 255, 0.4)',
                     cursor: 'pointer',
-                    transition: 'all 0.2s'
+                    transition: 'all 0.2s',
+                    flex: isMobile ? 1 : 'none'
                   }}
                   onMouseEnter={e => {
                     if (activeTab !== tab.id) e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
@@ -297,7 +414,7 @@ export default function LandingPage() {
         <motion.div
           key={activeTab}
           variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: true }}
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 24 }}>
+          style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: 24 }}>
           {loading ? (
             <div style={{ gridColumn: '1 / -1', padding: '40px 0' }} className="rhetoric-loader">
               <div className="spinner" />
@@ -413,16 +530,17 @@ export default function LandingPage() {
       {/* Footer */}
       <footer style={{
         borderTop: '1px solid rgba(255,255,255,0.05)',
-        background: 'rgba(2,6,23,0.9)', padding: '48px 40px', position: 'relative', zIndex: 2
+        background: 'rgba(2,6,23,0.9)', padding: isMobile ? '32px 16px' : '48px 40px', position: 'relative', zIndex: 2
       }}>
         <div style={{
           maxWidth: 1200, margin: '0 auto',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          flexWrap: 'wrap', gap: 16
+          display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+          alignItems: 'center', justifyContent: 'space-between',
+          gap: isMobile ? 24 : 16, textAlign: 'center'
         }}>
           <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 20, fontWeight: 800,
             color: 'var(--primary)' }}>RHETORIC</div>
-          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', justifyContent: 'center' }}>
             {[
               { label: 'About Us', path: '/about' },
               { label: 'Features', path: '/features' },
