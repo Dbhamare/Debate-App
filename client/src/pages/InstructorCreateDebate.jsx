@@ -40,6 +40,8 @@ export default function InstructorCreateDebate() {
 
     const debateData = {
       ...formData,
+      startTime: formData.startTime ? formData.startTime : null,
+      endTime: formData.endTime ? formData.endTime : null,
       sides: [
         { name: "proponent", participants: [] },
         { name: "opponent", participants: [] },

@@ -129,7 +129,7 @@ export default function InstructorDashboard() {
     } catch { showToast('Failed to copy link.', 'error'); }
   };
 
-  const liveCount = debates.filter(d => d.status === 'live').length;
+  const liveCount = debates.filter(d => d.status === 'active' || d.status === 'live').length;
   const totalParticipants = debates.reduce((acc, d) => acc + (d.participantCount || 0), 0);
 
   return (
@@ -242,7 +242,7 @@ export default function InstructorDashboard() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {debates.map((debate, i) => {
                   const debateUrl = `${window.location.origin}/debate/${debate.joincode}`;
-                  const isLive = debate.status === 'live';
+                  const isLive = debate.status === 'active' || debate.status === 'live';
                   return (
                     <motion.div key={debate.joincode} className="session-item"
                       initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}

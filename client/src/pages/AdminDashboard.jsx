@@ -161,7 +161,7 @@ export default function AdminDashboard() {
             style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 40, scrollMarginTop: 100 }}>
             {[
               { label: 'Active Users', value: users.length, icon: 'monitoring', color: 'primary', trend: '+12% this week' },
-              { label: 'Live Debates', value: debates.filter(d => d.status === 'live').length, icon: null, color: 'error', trend: 'Peak engagement' },
+              { label: 'Live Debates', value: debates.filter(d => d.status === 'active' || d.status === 'live').length, icon: null, color: 'error', trend: 'Peak engagement' },
               { label: 'Total Debates', value: debates.length, icon: 'forum', color: 'primary', trend: 'All time' },
               { label: 'Server Load', value: '42%', icon: 'memory', color: 'primary', trend: null, progress: 42 },
             ].map((m, i) => (
@@ -310,15 +310,17 @@ export default function AdminDashboard() {
                   }}>
                     <div style={{
                       position: 'absolute', left: 0, top: 0, bottom: 0, width: 3,
-                      background: d.status === 'live' ? 'var(--primary)' : 'var(--outline-variant)'
+                      background: d.status === 'active' || d.status === 'live' ? 'var(--primary)' : 'var(--outline-variant)'
                     }} />
                     <div style={{ paddingLeft: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                        {d.status === 'live' ? (
-                          <span className="badge-primary" style={{ fontSize: 10, letterSpacing: '0.1em' }}>
-                            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--primary)', animation: 'pulse 2s infinite', display: 'inline-block' }} />
+                        {d.status === 'active' || d.status === 'live' ? (
+                          <span className="badge-live" style={{ fontSize: 10 }}>
+                            <span className="pulse-dot" />
                             Live Now
                           </span>
+                        ) : d.status === 'upcoming' ? (
+                          <span className="badge-primary" style={{ fontSize: 10 }}>Upcoming</span>
                         ) : (
                           <span className="badge-neutral" style={{ fontSize: 10 }}>Closed</span>
                         )}

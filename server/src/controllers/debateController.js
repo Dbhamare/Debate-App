@@ -141,6 +141,10 @@ exports.updateStatus = async (req, res) => {
 
     debate.status = nextStatus;
     await debate.save();
+
+    const io = req.app.get('io');
+    if (io) io.to(`debate:${debate.joincode}`).emit(`statusUpdated:${debate.joincode}`, { status: nextStatus });
+
     res.json({ message: "Debate status updated", debate });
   } catch (err) {
     console.error("Error updating status:", err);
@@ -332,6 +336,9 @@ exports.startDebate = async (req, res) => {
     debate.status = 'active';
     await debate.save();
 
+    const io = req.app.get('io');
+    if (io) io.to(`debate:${joincode}`).emit(`statusUpdated:${joincode}`, { status: 'active' });
+
     res.json({ message: 'Debate started', debate });
   } catch (err) {
     console.error('startDebate error:', err);
@@ -348,6 +355,9 @@ exports.stopDebate = async (req, res) => {
     if (debate.status === 'closed') return res.json({ message: 'Already closed', debate });
     debate.status = 'closed';
     await debate.save();
+
+    const io = req.app.get('io');
+    if (io) io.to(`debate:${joincode}`).emit(`statusUpdated:${joincode}`, { status: 'closed' });
 
     res.json({ message: 'Debate stopped', debate });
   } catch (err) {

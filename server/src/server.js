@@ -5,6 +5,30 @@ const mongoose = require('mongoose');
 const app = require('./app');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
+const { Server } = require('socket.io');
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
+
+app.set('io', io);
+
+io.on('connection', (socket) => {
+  console.log('Client connected to socket:', socket.id);
+  socket.on('joinDebate', ({ joincode }, callback) => {
+    socket.join(`debate:${joincode}`);
+    console.log(`Socket ${socket.id} joined room debate:${joincode}`);
+    if (typeof callback === 'function') callback({ ok: true });
+  });
+  socket.on('disconnect', () => {
+    console.log('Client disconnected from socket:', socket.id);
+  });
+});
 
 const mongoUri = process.env.MONGO_URI;
 if (!mongoUri) {
@@ -18,7 +42,7 @@ if (process.env.VERCEL) {
 } else {
   mongoose.connect(mongoUri)
     .then(() => {
-      app.listen(process.env.PORT || 5000, () =>
+      server.listen(process.env.PORT || 5000, () =>
         console.log(`Server running locally on port ${process.env.PORT || 5000}`)
       );
     })

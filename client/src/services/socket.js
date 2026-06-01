@@ -1,12 +1,61 @@
+import { io as socketIO } from 'socket.io-client';
 import api from './api';
 
-class MockSocket {
+class HybridSocket {
   constructor() {
     this.listeners = {};
     this.currentJoincode = null;
     this.pollInterval = null;
     this.previousMessages = [];
     this.previousVotes = { proponent: 0, opponent: 0 };
+    this.previousStatus = null;
+
+    // Determine the socket url from the API base URL
+    const baseURL = api.defaults.baseURL || '';
+    const socketURL = baseURL.replace(/\/api\/?$/, ''); // e.g. http://localhost:5000
+
+    this.socket = null;
+    this.isRealSocketConnected = false;
+
+    if (socketURL) {
+      try {
+        console.log(`Initializing HybridSocket client connecting to: ${socketURL}`);
+        this.socket = socketIO(socketURL, {
+          transports: ['websocket', 'polling'],
+          autoConnect: true,
+          reconnection: true,
+          timeout: 5000,
+        });
+
+        this.socket.on('connect', () => {
+          console.log('Real Socket.io connected successfully!');
+          this.isRealSocketConnected = true;
+          // If we had a joincode active, join now
+          if (this.currentJoincode) {
+            this.socket.emit('joinDebate', { joincode: this.currentJoincode });
+          }
+          // Stop polling if connected
+          if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+            this.pollInterval = null;
+          }
+        });
+
+        this.socket.on('disconnect', () => {
+          console.warn('Real Socket.io disconnected.');
+          this.isRealSocketConnected = false;
+          this.startPollingIfNeeded();
+        });
+
+        this.socket.on('connect_error', (err) => {
+          console.warn('Real Socket.io connection error:', err.message);
+          this.isRealSocketConnected = false;
+          this.startPollingIfNeeded();
+        });
+      } catch (err) {
+        console.error('Failed to initialize Socket.io client:', err);
+      }
+    }
   }
 
   // Register event listeners
@@ -15,24 +64,38 @@ class MockSocket {
       this.listeners[event] = [];
     }
     this.listeners[event].push(callback);
+
+    // Also register on real socket
+    if (this.socket) {
+      this.socket.on(event, callback);
+    }
   }
 
   // Remove event listeners
   off(event, callback) {
     if (!event) {
       this.listeners = {};
+      if (this.socket) {
+        this.socket.off();
+      }
       return;
     }
     if (!callback) {
       delete this.listeners[event];
+      if (this.socket) {
+        this.socket.off(event);
+      }
       return;
     }
     if (this.listeners[event]) {
       this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
     }
+    if (this.socket) {
+      this.socket.off(event, callback);
+    }
   }
 
-  // Trigger local event callbacks
+  // Trigger local event callbacks (used by polling fallback)
   trigger(event, data) {
     const callbacks = this.listeners[event] || [];
     callbacks.forEach(cb => {
@@ -51,17 +114,39 @@ class MockSocket {
       if (joincode) {
         this.joinDebate(joincode);
       }
+    }
+
+    if (this.isRealSocketConnected && this.socket) {
+      this.socket.emit(event, payload, cb);
+    } else {
       if (typeof cb === 'function') {
         cb({ ok: true });
       }
     }
   }
 
-  // Join room and start polling
+  // Join room and start polling if real socket is not connected
   joinDebate(joincode) {
     this.currentJoincode = joincode;
     this.previousMessages = [];
     this.previousVotes = { proponent: 0, opponent: 0 };
+    this.previousStatus = null;
+
+    if (this.isRealSocketConnected && this.socket) {
+      this.socket.emit('joinDebate', { joincode });
+    }
+
+    this.startPollingIfNeeded();
+  }
+
+  startPollingIfNeeded() {
+    if (this.isRealSocketConnected) {
+      if (this.pollInterval) {
+        clearInterval(this.pollInterval);
+        this.pollInterval = null;
+      }
+      return;
+    }
 
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
@@ -134,8 +219,6 @@ class MockSocket {
             this.trigger(`messageDeleted:${joincode}`, { _id: prevMsg._id });
           }
         });
-      } else if (newMessages.length > 0) {
-        // Trigger initial load if needed (optional since pages fetch initial values themselves, but safe)
       }
 
       this.previousMessages = newMessages;
@@ -160,9 +243,24 @@ class MockSocket {
           }
           this.previousVotes = { proponent: propCount, opponent: oppCount };
         }
-      } catch (err) {
-        // Silently catch vote fetch errors (e.g. if routes not loaded yet or unauthenticated)
-      }
+      } catch (err) {}
+
+      // 3. Poll debate status
+      try {
+        const token = localStorage.getItem('token');
+        const debateResponse = await api.get(`/debates/join/${joincode}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        const debateData = debateResponse.data;
+        if (debateData && debateData.status) {
+          if (this.previousStatus && debateData.status !== this.previousStatus) {
+            this.trigger(`statusUpdated:${joincode}`, {
+              status: debateData.status
+            });
+          }
+          this.previousStatus = debateData.status;
+        }
+      } catch (err) {}
 
     } catch (err) {
       console.error('Error during client-side polling:', err);
@@ -176,8 +274,11 @@ class MockSocket {
     }
     this.currentJoincode = null;
     this.listeners = {};
+    if (this.socket) {
+      this.socket.disconnect();
+    }
   }
 }
 
-const socket = new MockSocket();
+const socket = new HybridSocket();
 export default socket;

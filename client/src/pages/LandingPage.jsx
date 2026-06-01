@@ -309,7 +309,7 @@ export default function LandingPage() {
               return true;
             });
 
-            const displayDebates = filteredDebates.length > 0 ? filteredDebates : (
+            const displayDebates = debates.length > 0 ? filteredDebates : (
               liveDebates.filter(debate => {
                 if (activeTab === 'live') return debate.status === 'active';
                 if (activeTab === 'archive') return debate.status === 'closed';
@@ -488,7 +488,7 @@ export default function LandingPage() {
                 <p className="text-caption" style={{ color: 'var(--on-surface-variant)', marginTop: 4 }}>Season 4 • Top Strategic Debaters</p>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4, marginBottom: 12 }}>
                 {[
                   { rank: 1, name: 'Dr. Elizabeth Vance', points: 1480, wins: 42, losses: 8, badge: '🏆 MASTER' },
                   { rank: 2, name: 'Prof. Alan Chen', points: 1250, wins: 35, losses: 10, badge: '🥇 ELITE' },

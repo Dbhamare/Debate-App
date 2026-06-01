@@ -90,36 +90,7 @@ exports.deleteDebate = async (req, res) => {
   }
 };
 
-exports.assignStudentToSide = async (req, res) => {
-  try {
-    const { studentId, side } = req.body;
 
-    const debate = await Debate.findById(req.params.id);
-    if (!debate) return res.status(404).json({ message: "Debate not found" });
-    if (!canManageDebate(req.user, debate)) {
-      return res.status(403).json({ message: "Forbidden" });
-    }
-
-    const student = await User.findById(studentId);
-    if (!student) return res.status(404).json({ message: "Student not found" });
-
-    debate.sides.forEach(s => {
-      s.participants = s.participants.filter(p => p.toString() !== studentId);
-    });
-
-    const sideObj = debate.sides.find(s => s.name === side);
-    if (!sideObj) return res.status(400).json({ message: "Invalid side provided" });
-
-    sideObj.participants.push(studentId);
-
-    await debate.save();
-
-    res.json({ message: "Student assigned successfully", debate });
-  } catch (err) {
-    console.error("Error assigning student:", err);
-    res.status(500).json({ error: err.message });
-  }
-};
 
 exports.getDebateAnalytics = async (req, res) => {
   try {

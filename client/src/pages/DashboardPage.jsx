@@ -14,7 +14,7 @@ const fadeUp = {
 };
 
 function DebateCard({ debate, index, onJoin }) {
-  const isLive = debate.isLive || debate.status === 'live';
+  const isLive = debate.isLive || debate.status === 'active' || debate.status === 'live';
   const isPublic = debate.isPublic;
   return (
     <motion.div
@@ -82,6 +82,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const user = (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })();
+  const currentUser = user;
 
   const [notifications, setNotifications] = useState(() => {
     try {
@@ -126,7 +127,7 @@ export default function DashboardPage() {
       let updated = false;
 
       fetchedDebates.forEach(debate => {
-        const isLive = debate.isLive || debate.status === 'live';
+        const isLive = debate.isLive || debate.status === 'active' || debate.status === 'live';
         
         // 1. Live debate notification
         if (isLive) {

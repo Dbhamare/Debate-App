@@ -97,12 +97,12 @@ export default function Sidebar({ user }) {
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {navLinks.map((link, i) => {
           const isActive = (() => {
+            if (link.label === 'Manage Debates' && location.pathname.startsWith('/instructor/debate/') && location.pathname.endsWith('/manage')) {
+              return true;
+            }
             if (link.path.includes('#')) {
               const [linkPath, linkHash] = link.path.split('#');
               return location.pathname === linkPath && location.hash === '#' + linkHash;
-            }
-            if (link.label === 'Manage Debates' && location.pathname.startsWith('/instructor/debate/') && location.pathname.endsWith('/manage')) {
-              return true;
             }
             return location.pathname === link.path && !location.hash;
           })();

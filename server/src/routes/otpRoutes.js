@@ -49,6 +49,11 @@ router.post('/register/email/request', validate({ body: otpSchemas.registerReque
     const em = String(req.body?.email || '').toLowerCase().trim();
     if (!em) return res.status(400).json({ message: 'Email required' });
 
+    const existing = await User.findOne({ email: em });
+    if (existing) {
+      return res.status(409).json({ message: 'Email is already registered' });
+    }
+
     const code = generateOtpCode(6);
     pending.set(`reg:${em}`, { code, expiresAt: Date.now() + 10 * 60 * 1000 });
 

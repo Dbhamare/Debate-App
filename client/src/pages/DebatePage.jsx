@@ -273,6 +273,21 @@ export default function DebatePage() {
     };
     socket.on(`voteUpdated:${joincode}`, onVote);
 
+    const onStatusUpdated = (payload) => {
+      if (payload && payload.status) {
+        setDebate((prev) => {
+          if (!prev) return prev;
+          if (payload.status === 'closed' && prev.status !== 'closed') {
+            setToast({ open: true, severity: 'info', message: 'The debate has been closed by the instructor.' });
+          } else if (payload.status === 'active' && prev.status !== 'active') {
+            setToast({ open: true, severity: 'success', message: 'The debate is now active!' });
+          }
+          return { ...prev, status: payload.status };
+        });
+      }
+    };
+    socket.on(`statusUpdated:${joincode}`, onStatusUpdated);
+
     return () => {
       socket.off(`newMessage:${joincode}`, onNew);
       socket.off(`messageEdited:${joincode}`, onEdited);
@@ -280,6 +295,7 @@ export default function DebatePage() {
       socket.off(`messageUpdated:${joincode}`, onUpdated);
       socket.off(`messagePinned:${joincode}`, onUpdated);
       socket.off(`voteUpdated:${joincode}`, onVote);
+      socket.off(`statusUpdated:${joincode}`, onStatusUpdated);
     };
   }, [joincode, token]);
 
@@ -386,11 +402,11 @@ export default function DebatePage() {
   const cancelReply = () => setReplyTarget(null);
 
   const sendReply = async ({ id, side, content } = {}) => {
-    if (!id || !side) return;
-    if (!canPost(side)) return;
+    if (!id || !side) return false;
+    if (!canPost(side)) return false;
 
     const trimmed = (content || '').trim();
-    if (!trimmed) return;
+    if (!trimmed) return false;
 
     const isAnon = !!replyAnon;
     const tempId = addOptimisticMessage(trimmed, side, id, isAnon);
@@ -402,10 +418,12 @@ export default function DebatePage() {
         { content: trimmed, side, isAnonymous: isAnon },
         { headers: { Authorization: `Bearer ${token}` } },
       );
+      return true;
     } catch (err) {
       console.error('Failed to reply:', err);
       removeOptimisticMessage(tempId);
       setToast({ open: true, severity: 'error', message: 'Failed to transmit reply. Please try again.' });
+      return false;
     }
   };
 
@@ -1176,7 +1194,12 @@ const MessageItem = React.memo(function MessageItem({ msg, depth = 0, sideKey })
                   className="btn-primary"
                   style={{ padding: '8px 20px' }}
                   disabled={!localReply.trim()}
-                  onClick={() => sendReply({ id: msg._id, side: replyTarget.side, content: localReply })}
+                  onClick={async () => {
+                    const success = await sendReply({ id: msg._id, side: replyTarget.side, content: localReply });
+                    if (success) {
+                      setLocalReply('');
+                    }
+                  }}
                 >
                   Deploy Reply
                 </button>

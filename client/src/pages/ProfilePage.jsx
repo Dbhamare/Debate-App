@@ -95,12 +95,31 @@ export default function ProfilePage() {
     e.preventDefault(); setSaving(true);
     try {
       const payload = toProfileFields(form);
+      const emailChanged = me && payload.email !== me.email;
+      const phoneChanged = me && payload.phone !== me.phone;
+      if (emailChanged) payload.email = me.email;
+      if (phoneChanged) payload.phone = me.phone;
+
       const { data } = await api.patch('/profile/me', payload, { headers: { Authorization: `Bearer ${token}` } });
       const updated = toProfileFields({ ...payload, ...data });
       setMe(p => p ? { ...p, ...updated } : p); setForm(f => ({ ...f, ...updated }));
+      
       const u = JSON.parse(localStorage.getItem('user') || '{}');
-      localStorage.setItem('user', JSON.stringify({ ...u, name: updated.name, email: updated.email, avatarUrl: updated.avatarUrl }));
-      showToast('Profile updated.');
+      localStorage.setItem('user', JSON.stringify({
+        ...u,
+        name: updated.name,
+        avatarUrl: updated.avatarUrl,
+        title: updated.title,
+        gender: updated.gender,
+        bio: updated.bio,
+        course: updated.course
+      }));
+
+      if (emailChanged || phoneChanged) {
+        showToast('Profile updated. Note: Unverified email/phone changes were not saved. Verify them via OTP first.', 'info');
+      } else {
+        showToast('Profile updated.');
+      }
     } catch (e) { showToast(e.response?.data?.message || 'Failed to update profile', 'error'); }
     finally { setSaving(false); }
   };
@@ -111,6 +130,14 @@ export default function ProfilePage() {
       await api.post('/otp/profile/email/request', { newEmail: form.email }, { headers: { Authorization: `Bearer ${token}` } });
       setOtpModal({ open: true, purpose: 'change_email', target: form.email }); setOtpCode('');
     } catch (e) { showToast(e.response?.data?.message || 'Failed to send email OTP', 'error'); }
+  };
+
+  const requestPhoneOtp = async () => {
+    if (!form.phone || form.phone === me?.phone) { showToast('Enter a new phone number to verify.', 'error'); return; }
+    try {
+      await api.post('/otp/profile/phone/request', { newPhone: form.phone }, { headers: { Authorization: `Bearer ${token}` } });
+      setOtpModal({ open: true, purpose: 'change_phone', target: form.phone }); setOtpCode('');
+    } catch (e) { showToast(e.response?.data?.message || 'Failed to send phone OTP', 'error'); }
   };
 
   const requestPasswordOtp = async () => {
@@ -127,7 +154,17 @@ export default function ProfilePage() {
       if (otpModal.purpose === 'change_email') {
         const { data } = await api.post('/otp/profile/email/verify', { code: otpCode, newEmail: otpModal.target }, { headers: { Authorization: `Bearer ${token}` } });
         setForm(f => ({ ...f, email: data.email || '' }));
+        if (me) setMe(p => p ? { ...p, email: data.email } : p);
+        const u = JSON.parse(localStorage.getItem('user') || '{}');
+        localStorage.setItem('user', JSON.stringify({ ...u, email: data.email, emailVerified: true }));
         showToast('Email verified and updated.');
+      } else if (otpModal.purpose === 'change_phone') {
+        const { data } = await api.post('/otp/profile/phone/verify', { code: otpCode, newPhone: otpModal.target }, { headers: { Authorization: `Bearer ${token}` } });
+        setForm(f => ({ ...f, phone: data.phone || '' }));
+        if (me) setMe(p => p ? { ...p, phone: data.phone } : p);
+        const u = JSON.parse(localStorage.getItem('user') || '{}');
+        localStorage.setItem('user', JSON.stringify({ ...u, phone: data.phone, phoneVerified: true }));
+        showToast('Phone number verified and updated.');
       } else if (otpModal.purpose === 'change_password') {
         await api.post('/otp/profile/password/verify', { code: otpCode, newPassword: form.newPassword }, { headers: { Authorization: `Bearer ${token}` } });
         setForm(f => ({ ...f, oldPassword: '', newPassword: '' }));
@@ -242,9 +279,15 @@ export default function ProfilePage() {
             {/* Phone */}
             <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 32, marginBottom: 24 }}>
               <h2 style={{ fontFamily: 'Space Grotesk', fontSize: 18, fontWeight: 700, color: 'var(--on-surface)', marginBottom: 20 }}>Phone Number</h2>
-              <div className="input-wrapper">
-                <span className="input-icon material-symbols-outlined">phone</span>
-                <input className="rhetoric-input" type="tel" name="phone" value={form.phone} onChange={onChange} placeholder="+447700900123" />
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div className="input-wrapper" style={{ flex: 1 }}>
+                  <span className="input-icon material-symbols-outlined">phone</span>
+                  <input className="rhetoric-input" type="tel" name="phone" value={form.phone} onChange={onChange} placeholder="+447700900123" />
+                </div>
+                <motion.button type="button" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                  onClick={requestPhoneOtp} className="btn-outline" style={{ flexShrink: 0 }}>
+                  Verify Phone
+                </motion.button>
               </div>
             </div>
 
@@ -306,8 +349,15 @@ export default function ProfilePage() {
           </Modal>
         )}
         {otpModal.open && (
-          <Modal title={otpModal.purpose === 'change_email' ? 'Verify New Email' : 'Verify Password Change'} onClose={() => setOtpModal({ open: false, purpose: null, target: '' })}>
-            <p style={{ color: 'var(--on-surface-variant)', fontSize: 14, marginBottom: 16 }}>Enter the 6-digit code we sent to your registered email.</p>
+          <Modal title={
+            otpModal.purpose === 'change_email' ? 'Verify New Email' : 
+            otpModal.purpose === 'change_phone' ? 'Verify Phone Number' : 'Verify Password Change'
+          } onClose={() => setOtpModal({ open: false, purpose: null, target: '' })}>
+            <p style={{ color: 'var(--on-surface-variant)', fontSize: 14, marginBottom: 16 }}>
+              {otpModal.purpose === 'change_phone' 
+                ? 'Enter the 6-digit code we sent to your phone number.' 
+                : 'Enter the 6-digit code we sent to your registered email.'}
+            </p>
             <input className="rhetoric-input" style={{ paddingLeft: 16, marginBottom: 20, letterSpacing: '0.2em', fontSize: 20, textAlign: 'center' }}
               placeholder="123456" value={otpCode} inputMode="numeric" maxLength={6}
               onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} autoFocus />
