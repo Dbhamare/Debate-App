@@ -562,7 +562,21 @@ export default function DebatePage() {
     if (guardIfClosed()) return;
     evt.preventDefault();
     evt.stopPropagation();
-    setMenuPos({ top: evt.clientY + 4, left: evt.clientX + 4 });
+
+    const menuWidth = 200; // approximate width of the context menu
+    const menuHeight = 220; // approximate height of the context menu
+
+    let leftPos = evt.clientX + 4;
+    if (leftPos + menuWidth > window.innerWidth) {
+      leftPos = Math.max(16, window.innerWidth - menuWidth - 16);
+    }
+
+    let topPos = evt.clientY + 4;
+    if (topPos + menuHeight > window.innerHeight) {
+      topPos = Math.max(16, window.innerHeight - menuHeight - 16);
+    }
+
+    setMenuPos({ top: topPos, left: leftPos });
     setMenuAnchor(null);
     setMenuMsg(msg);
   };
