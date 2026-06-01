@@ -57,7 +57,7 @@ export default function LandingPage() {
   useEffect(() => {
     api.get('/debates/public')
       .then(res => {
-        setDebates(res.data || []);
+        setDebates(Array.isArray(res.data) ? res.data : []);
         setLoading(false);
       })
       .catch(err => {
@@ -420,13 +420,14 @@ export default function LandingPage() {
               <div className="spinner" />
             </div>
           ) : (() => {
-            const filteredDebates = debates.filter(debate => {
+            const debatesList = Array.isArray(debates) ? debates : [];
+            const filteredDebates = debatesList.filter(debate => {
               if (activeTab === 'live') return debate.status === 'active';
               if (activeTab === 'archive') return debate.status === 'closed';
               return true;
             });
 
-            const displayDebates = debates.length > 0 ? filteredDebates : (
+            const displayDebates = debatesList.length > 0 ? filteredDebates : (
               liveDebates.filter(debate => {
                 if (activeTab === 'live') return debate.status === 'active';
                 if (activeTab === 'archive') return debate.status === 'closed';

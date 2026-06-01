@@ -105,7 +105,8 @@ export default function InstructorDashboard() {
       const token = localStorage.getItem('token');
       const res = await api.get('/debates', { headers: { Authorization: `Bearer ${token}` } });
       const ud = JSON.parse(localStorage.getItem('user') || '{}');
-      setDebates(res.data.filter(d => d.instructor === Number(ud?.userID)));
+      const data = Array.isArray(res.data) ? res.data : [];
+      setDebates(data.filter(d => d.instructor === Number(ud?.userID)));
     } catch (err) {
       console.error(err);
     } finally { setLoading(false); }
@@ -129,8 +130,9 @@ export default function InstructorDashboard() {
     } catch { showToast('Failed to copy link.', 'error'); }
   };
 
-  const liveCount = debates.filter(d => d.status === 'active' || d.status === 'live').length;
-  const totalParticipants = debates.reduce((acc, d) => acc + (d.participantCount || 0), 0);
+  const debatesList = Array.isArray(debates) ? debates : [];
+  const liveCount = debatesList.filter(d => d.status === 'active' || d.status === 'live').length;
+  const totalParticipants = debatesList.reduce((acc, d) => acc + (d.participantCount || 0), 0);
 
   return (
     <div className="page-transition" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--background)' }}>
@@ -185,7 +187,7 @@ export default function InstructorDashboard() {
             style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 40 }}>
             {[
               { label: 'Active Debates', value: liveCount, icon: 'record_voice_over', trend: 'Live now' },
-              { label: 'Total Sessions', value: debates.length, icon: 'forum', trend: 'All time' },
+              { label: 'Total Sessions', value: debatesList.length, icon: 'forum', trend: 'All time' },
               { label: 'Total Participants', value: totalParticipants || '—', icon: 'groups', trend: 'Enrolled' },
             ].map((stat, i) => (
               <motion.div key={stat.label} className="stat-card"
@@ -219,7 +221,7 @@ export default function InstructorDashboard() {
 
             {loading ? (
               <div className="rhetoric-loader"><div className="spinner" /></div>
-            ) : debates.length === 0 ? (
+            ) : debatesList.length === 0 ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                 style={{
                   padding: 48, textAlign: 'center', borderRadius: 16,
@@ -240,7 +242,7 @@ export default function InstructorDashboard() {
               </motion.div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {debates.map((debate, i) => {
+                {debatesList.map((debate, i) => {
                   const debateUrl = `${window.location.origin}/debate/${debate.joincode}`;
                   const isLive = debate.status === 'active' || debate.status === 'live';
                   return (

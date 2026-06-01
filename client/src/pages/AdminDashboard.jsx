@@ -79,7 +79,8 @@ export default function AdminDashboard() {
     setLoading(true);
     try {
       const [ur, dr] = await Promise.all([api.get('/admin/users'), api.get('/admin/debates')]);
-      setUsers(ur.data); setDebates(dr.data);
+      setUsers(Array.isArray(ur.data) ? ur.data : []);
+      setDebates(Array.isArray(dr.data) ? dr.data : []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -124,7 +125,9 @@ export default function AdminDashboard() {
     catch { showToast('Failed to delete debate', 'error'); }
   };
 
-  const filteredUsers = users.filter(u => !search || u.name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()));
+  const usersList = Array.isArray(users) ? users : [];
+  const debatesList = Array.isArray(debates) ? debates : [];
+  const filteredUsers = usersList.filter(u => !search || u.name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--background)' }}>
@@ -160,9 +163,9 @@ export default function AdminDashboard() {
           <motion.div id="analytics" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 40, scrollMarginTop: 100 }}>
             {[
-              { label: 'Active Users', value: users.length, icon: 'monitoring', color: 'primary', trend: '+12% this week' },
-              { label: 'Live Debates', value: debates.filter(d => d.status === 'active' || d.status === 'live').length, icon: null, color: 'error', trend: 'Peak engagement' },
-              { label: 'Total Debates', value: debates.length, icon: 'forum', color: 'primary', trend: 'All time' },
+              { label: 'Active Users', value: usersList.length, icon: 'monitoring', color: 'primary', trend: '+12% this week' },
+              { label: 'Live Debates', value: debatesList.filter(d => d.status === 'active' || d.status === 'live').length, icon: null, color: 'error', trend: 'Peak engagement' },
+              { label: 'Total Debates', value: debatesList.length, icon: 'forum', color: 'primary', trend: 'All time' },
               { label: 'Server Load', value: '42%', icon: 'memory', color: 'primary', trend: null, progress: 42 },
             ].map((m, i) => (
               <motion.div key={m.label} className="stat-card"
@@ -285,7 +288,7 @@ export default function AdminDashboard() {
                   </table>
                   <div style={{ padding: '12px 24px', borderTop: '1px solid rgba(255,255,255,0.06)',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 12, color: 'var(--outline)' }}>Showing {filteredUsers.length} of {users.length} users</span>
+                    <span style={{ fontSize: 12, color: 'var(--outline)' }}>Showing {filteredUsers.length} of {usersList.length} users</span>
                   </div>
                 </div>
               )}
@@ -303,7 +306,7 @@ export default function AdminDashboard() {
                 <span style={{ fontSize: 13, color: 'var(--primary)', cursor: 'pointer', fontWeight: 600 }}>View All</span>
               </div>
               <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', flex: 1 }}>
-                {debates.map(d => (
+                {debatesList.map(d => (
                   <div key={d._id} style={{
                     padding: 16, borderRadius: 10, background: 'var(--surface-container)',
                     border: '1px solid rgba(255,255,255,0.06)', position: 'relative', overflow: 'hidden'

@@ -337,11 +337,11 @@ export default function DashboardPage() {
         const res = await api.get('/debates/assigned', {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
-        fetched = res.data || [];
+        fetched = Array.isArray(res.data) ? res.data : [];
       } catch {
         try {
           const res = await api.get('/debates/public');
-          fetched = res.data || [];
+          fetched = Array.isArray(res.data) ? res.data : [];
         } catch { fetched = []; }
       } finally {
         setDebates(fetched);
@@ -359,7 +359,8 @@ export default function DashboardPage() {
     setJoinCode('');
   };
 
-  const filtered = debates.filter(d =>
+  const debatesList = Array.isArray(debates) ? debates : [];
+  const filtered = debatesList.filter(d =>
     !search || d.title?.toLowerCase().includes(search.toLowerCase())
   );
 
