@@ -20,7 +20,7 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const InstructorDashboard = lazy(() => import('./pages/InstructorDashboard'));
 const InstructorCreateDebate = lazy(() => import('./pages/InstructorCreateDebate'));
 const InstructorManageDebate = lazy(() => import('./pages/InstructorManageDebate'));
-const SearchPage = lazy(() => import('./pages/SearchPage'));
+
 
 function LoadingFallback() {
   return (
@@ -67,7 +67,7 @@ export default function AppRoutes() {
         <Route path="/instructor/create-debate" element={<RequireRole roles={['instructor', 'admin']} fallback="/dashboard"><InstructorCreateDebate /></RequireRole>} />
         <Route path="/instructor/debate/:joincode/manage" element={<RequireRole roles={['instructor', 'admin']} fallback="/dashboard"><InstructorManageDebate /></RequireRole>} />
         <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
-        <Route path="/search" element={<RequireAuth><SearchPage /></RequireAuth>} />
+
       </Routes>
     </Suspense>
   );

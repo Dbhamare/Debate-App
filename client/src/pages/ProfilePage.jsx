@@ -142,16 +142,18 @@ export default function ProfilePage() {
   const fallback = form.name?.[0]?.toUpperCase() || 'U';
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--background)' }}>
       <div className="ambient-bg"><div className="blob-1" /><div className="blob-2" /></div>
       <Sidebar user={user} />
-      <div className="rhetoric-main" style={{ position: 'relative', zIndex: 1 }}>
+      <div className="rhetoric-main" style={{ position: 'relative', zIndex: 1, height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <header className="rhetoric-topbar">
-          <span style={{ fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: 700, color: 'var(--on-surface)' }}>My Profile</span>
+          <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
+            <span style={{ fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: 700, color: 'var(--on-surface)', display: 'block', lineHeight: 1.2 }}>My Profile</span>
+          </div>
         </header>
-        <main style={{ flex: 1, padding: '40px 32px', display: 'flex', justifyContent: 'center' }}>
+        <main style={{ flex: 1, padding: '40px 32px', display: 'flex', justifyContent: 'center', overflowY: 'auto', minHeight: 0 }}>
           <motion.form onSubmit={onSave} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            style={{ width: '100%', maxWidth: 780 }}>
+            style={{ width: '100%', maxWidth: 1400 }}>
             <div style={{ marginBottom: 40 }}>
               <h1 style={{ fontFamily: 'Space Grotesk', fontSize: 36, fontWeight: 800, color: 'var(--on-surface)', letterSpacing: '-0.01em', marginBottom: 6 }}>My Profile</h1>
               <p style={{ color: 'var(--on-surface-variant)', fontSize: 16 }}>Update personal details, avatar, and account security.</p>

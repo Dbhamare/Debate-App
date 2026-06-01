@@ -10,18 +10,19 @@ export default function DebatesListPage() {
   const user = (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })();
 
   useEffect(() => {
-    api.get('/debates').then(res => setDebates(res.data)).catch(() => setDebates([]));
-  }, []);
+    const endpoint = user?.role === 'instructor' ? '/debates' : '/debates/assigned';
+    api.get(endpoint).then(res => setDebates(res.data)).catch(() => setDebates([]));
+  }, [user]);
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--background)' }}>
       <div className="ambient-bg"><div className="blob-1" /><div className="blob-2" /></div>
       <Sidebar user={user} />
-      <div className="rhetoric-main" style={{ position: 'relative', zIndex: 1 }}>
+      <div className="rhetoric-main" style={{ position: 'relative', zIndex: 1, height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <header className="rhetoric-topbar">
           <span style={{ fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: 700, color: 'var(--on-surface)' }}>All Debates</span>
         </header>
-        <main style={{ flex: 1, padding: '40px 32px' }}>
+        <main style={{ flex: 1, padding: '40px 32px', overflowY: 'auto', minHeight: 0 }}>
           <motion.h1 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
             style={{ fontFamily: 'Space Grotesk', fontSize: 36, fontWeight: 800, color: 'var(--on-surface)', marginBottom: 32 }}>
             Browse Debates

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import api from "../services/api";
 import Sidebar from "../components/Sidebar";
 import {
-  ResponsiveContainer, BarChart, Bar, LineChart, Line,
+  ResponsiveContainer, BarChart, Bar, LineChart, Line, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell
 } from "recharts";
 
@@ -254,13 +254,35 @@ export default function InstructorManageDebate() {
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
+      const getBulletColor = (entry) => {
+        const name = entry.name?.toLowerCase() || "";
+        const dataKey = entry.dataKey?.toLowerCase() || "";
+        if (name.includes("proponent") || dataKey.includes("proponent")) return "#38bdf8";
+        if (name.includes("opponent") || dataKey.includes("opponent")) return "#ff97a3";
+        if (name.includes("neutral") || dataKey.includes("neutral")) return "#a7b2c9";
+        if (name.includes("messages") || dataKey.includes("messages") || dataKey === "count") return "#38bdf8";
+        if (name.includes("upvotes") || dataKey.includes("upvotes")) return "#ff97a3";
+        if (name.includes("likes") || dataKey.includes("likes")) return "#ffb2b9";
+        return entry.color || entry.fill || "#38bdf8";
+      };
+
       return (
-        <div className="glass-card" style={{ padding: '8px 12px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }}>
-          <p className="text-label-bold" style={{ marginBottom: 4, color: 'var(--primary)' }}>{label}</p>
+        <div style={{
+          background: 'rgba(11, 19, 38, 0.95)',
+          backdropFilter: 'blur(12px)',
+          padding: '12px 16px',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: 12,
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)'
+        }}>
+          <p className="text-label-bold" style={{ marginBottom: 8, color: 'var(--on-surface)', fontSize: 14 }}>{label}</p>
           {payload.map((entry, index) => (
-            <p key={index} style={{ fontSize: 12, color: 'var(--on-surface-variant)' }}>
-              {entry.name}: {entry.value}
-            </p>
+            <div key={index} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--on-surface-variant)', marginTop: 4 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: getBulletColor(entry) }} />
+              <span>
+                {entry.name}: <strong style={{ color: 'var(--on-surface)' }}>{entry.value}</strong>
+              </span>
+            </div>
           ))}
         </div>
       );
@@ -269,17 +291,17 @@ export default function InstructorManageDebate() {
   };
 
   return (
-    <div className="page-transition" style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
+    <div className="page-transition" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--background)' }}>
       <div className="ambient-bg"><div className="blob-1" /><div className="blob-2" /></div>
       <Sidebar user={currentUser} />
 
-      <main className="rhetoric-main">
+      <main className="rhetoric-main" style={{ height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <header className="rhetoric-topbar">
-          <div>
-            <h1 className="text-headline-md" style={{ color: 'var(--on-surface)' }}>Arena Command Center</h1>
-            <p className="text-caption" style={{ color: 'var(--on-surface-variant)' }}>Debate System Control & Analytics</p>
+          <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
+            <h1 className="text-headline-md" style={{ color: 'var(--on-surface)', margin: 0, lineHeight: 1.2 }}>Arena Command Center</h1>
+            <p className="text-caption" style={{ color: 'var(--on-surface-variant)', marginTop: 4 }}>Debate System Control & Analytics</p>
           </div>
-          <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
              <button className="btn-ghost" onClick={handleExportAnalytics}>
                 <span className="material-symbols-outlined" style={{ fontSize: 18 }}>analytics</span>
                 Export Report
@@ -291,7 +313,7 @@ export default function InstructorManageDebate() {
           </div>
         </header>
 
-        <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 32 }}>
+        <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 32, overflowY: 'auto', flex: 1, minHeight: 0 }}>
           {/* Status & Info */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -416,13 +438,28 @@ export default function InstructorManageDebate() {
                     <h4 className="text-label-bold" style={{ marginBottom: 16 }}>Participation Distribution</h4>
                     <ResponsiveContainer width="100%" height="85%">
                       <BarChart data={messagesSeries}>
+                        <defs>
+                          <linearGradient id="proponentGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#38bdf8" />
+                            <stop offset="100%" stopColor="#0284c7" />
+                          </linearGradient>
+                          <linearGradient id="opponentGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#ff97a3" />
+                            <stop offset="100%" stopColor="#f43f5e" />
+                          </linearGradient>
+                          <linearGradient id="neutralGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#a7b2c9" />
+                            <stop offset="100%" stopColor="#64748b" />
+                          </linearGradient>
+                        </defs>
                         <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" fontSize={12} />
                         <YAxis stroke="rgba(255,255,255,0.3)" fontSize={12} />
-                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
                         <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                           {messagesSeries.map((entry, index) => (
-                             <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                           ))}
+                           {messagesSeries.map((entry, index) => {
+                             const fills = ["url(#proponentGrad)", "url(#opponentGrad)", "url(#neutralGrad)"];
+                             return <Cell key={`cell-${index}`} fill={fills[index % fills.length]} />;
+                           })}
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
@@ -431,13 +468,19 @@ export default function InstructorManageDebate() {
                   <motion.div className="glass-panel" style={{ padding: 24, borderRadius: 24, height: 350 }}>
                     <h4 className="text-label-bold" style={{ marginBottom: 16 }}>Activity Timeline</h4>
                     <ResponsiveContainer width="100%" height="85%">
-                      <LineChart data={timelineSeries}>
+                      <AreaChart data={timelineSeries}>
+                        <defs>
+                          <linearGradient id="timelineGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.3} />
+                            <stop offset="100%" stopColor="#38bdf8" stopOpacity={0.0} />
+                          </linearGradient>
+                        </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                         <XAxis dataKey="time" stroke="rgba(255,255,255,0.3)" fontSize={12} />
                         <YAxis stroke="rgba(255,255,255,0.3)" fontSize={12} />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Line type="monotone" dataKey="Messages" stroke="var(--primary)" strokeWidth={3} dot={{ fill: 'var(--primary)', strokeWidth: 2 }} />
-                      </LineChart>
+                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }} />
+                        <Area type="monotone" dataKey="Messages" stroke="#38bdf8" strokeWidth={3} fill="url(#timelineGrad)" dot={{ fill: '#38bdf8', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                      </AreaChart>
                     </ResponsiveContainer>
                   </motion.div>
 
@@ -445,11 +488,21 @@ export default function InstructorManageDebate() {
                     <h4 className="text-label-bold" style={{ marginBottom: 16 }}>Top Performers</h4>
                     <ResponsiveContainer width="100%" height="85%">
                       <BarChart data={participantsSeries} layout="vertical">
+                        <defs>
+                          <linearGradient id="messagesGrad" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor="#38bdf8" />
+                            <stop offset="100%" stopColor="#0284c7" />
+                          </linearGradient>
+                          <linearGradient id="upvotesGrad" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor="#ff97a3" />
+                            <stop offset="100%" stopColor="#f43f5e" />
+                          </linearGradient>
+                        </defs>
                         <XAxis type="number" hide />
                         <YAxis dataKey="name" type="category" stroke="rgba(255,255,255,0.3)" fontSize={11} width={80} />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Bar dataKey="Messages" fill="var(--primary)" radius={[0, 4, 4, 0]} />
-                        <Bar dataKey="Upvotes" fill="#bcc7de" radius={[0, 4, 4, 0]} />
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+                        <Bar dataKey="Messages" fill="url(#messagesGrad)" radius={[0, 4, 4, 0]} />
+                        <Bar dataKey="Upvotes" fill="url(#upvotesGrad)" radius={[0, 4, 4, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </motion.div>

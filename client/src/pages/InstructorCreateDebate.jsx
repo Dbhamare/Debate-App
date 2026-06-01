@@ -64,14 +64,16 @@ export default function InstructorCreateDebate() {
   };
 
   return (
-    <div className="page-transition" style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
+    <div className="page-transition" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--background)' }}>
       <div className="ambient-bg"><div className="blob-1" /><div className="blob-2" /></div>
       <Sidebar user={currentUser} />
 
-      <main className="rhetoric-main">
+      <main className="rhetoric-main" style={{ height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <header className="rhetoric-topbar">
-          <h1 className="text-headline-md" style={{ color: 'var(--on-surface)' }}>Create New Arena</h1>
-          <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
+            <h1 className="text-headline-md" style={{ color: 'var(--on-surface)', margin: 0, lineHeight: 1.2 }}>Create New Arena</h1>
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
             <button className="btn-ghost" onClick={() => navigate(-1)}>Cancel</button>
             <button className="btn-primary" onClick={handleSubmit} disabled={loading}>
               {loading ? 'Initializing...' : 'Deploy Arena'}
@@ -79,7 +81,7 @@ export default function InstructorCreateDebate() {
           </div>
         </header>
 
-        <div style={{ padding: '32px 24px', maxWidth: 800, margin: '0 auto', width: '100%' }}>
+        <div style={{ padding: '32px 24px', maxWidth: 1400, margin: '0 auto', width: '100%', overflowY: 'auto', flex: 1, minHeight: 0 }}>
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

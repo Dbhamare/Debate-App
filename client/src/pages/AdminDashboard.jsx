@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 import Sidebar from '../components/Sidebar';
@@ -56,11 +56,24 @@ export default function AdminDashboard() {
   const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', action: null });
   const [toast, setToast] = useState(null);
   const [search, setSearch] = useState('');
+  const location = useLocation();
   const user = (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })();
 
   const showToast = (message, type = 'success') => setToast({ message, type });
 
   useEffect(() => { fetchData(); }, []);
+
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.substring(1);
+      const element = document.getElementById(id);
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    }
+  }, [location.hash, loading]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -114,15 +127,15 @@ export default function AdminDashboard() {
   const filteredUsers = users.filter(u => !search || u.name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--background)' }}>
       <div className="ambient-bg"><div className="blob-1" /><div className="blob-2" /></div>
       <Sidebar user={user} />
-      <div className="rhetoric-main" style={{ position: 'relative', zIndex: 1 }}>
+      <div className="rhetoric-main" style={{ position: 'relative', zIndex: 1, height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <header className="rhetoric-topbar">
-          <div style={{ flex: 1 }}>
-            <span style={{ fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: 700, color: 'var(--on-surface)' }}>Command Center</span>
+          <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
+            <span style={{ fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: 700, color: 'var(--on-surface)', display: 'block', lineHeight: 1.2 }}>Command Center</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px',
               borderRadius: 8, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)' }}>
               <span className="material-symbols-outlined" style={{ color: 'var(--primary)', fontSize: 18 }}>circle</span>
@@ -131,7 +144,7 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        <main style={{ flex: 1, padding: '40px 32px' }}>
+        <main style={{ flex: 1, padding: '40px 32px', overflowY: 'auto', minHeight: 0 }}>
           {/* Hero */}
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 40 }}>
             <div style={{ position: 'absolute', top: 0, left: '25%', width: 600, height: 400,
@@ -144,8 +157,8 @@ export default function AdminDashboard() {
           </motion.div>
 
           {/* Metrics */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 40 }}>
+          <motion.div id="analytics" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 40, scrollMarginTop: 100 }}>
             {[
               { label: 'Active Users', value: users.length, icon: 'monitoring', color: 'primary', trend: '+12% this week' },
               { label: 'Live Debates', value: debates.filter(d => d.status === 'live').length, icon: null, color: 'error', trend: 'Peak engagement' },
@@ -186,10 +199,10 @@ export default function AdminDashboard() {
 
           {/* Users Table */}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24 }}>
-            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+            <motion.div id="users" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
               style={{
                 background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 16, overflow: 'hidden'
+                borderRadius: 16, overflow: 'hidden', scrollMarginTop: 100
               }}>
               <div style={{
                 padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)',
@@ -279,10 +292,10 @@ export default function AdminDashboard() {
             </motion.div>
 
             {/* Debates Feed */}
-            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+            <motion.div id="debates" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
               style={{
                 background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column'
+                borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', scrollMarginTop: 100
               }}>
               <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

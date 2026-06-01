@@ -101,23 +101,25 @@ export default function PublicDebatePage() {
   };
 
   return (
-    <div className="page-transition" style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
+    <div className="page-transition" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--background)' }}>
       <div className="ambient-bg"><div className="blob-1" /><div className="blob-2" /></div>
       <Sidebar user={currentUser} />
 
-      <main className="rhetoric-main">
+      <main className="rhetoric-main" style={{ height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <header className="rhetoric-topbar">
-          <div>
-            <h1 className="text-headline-md" style={{ color: 'var(--on-surface)' }}>{debate.title}</h1>
-            <p className="text-caption" style={{ color: 'var(--on-surface-variant)' }}>{debate.description}</p>
+          <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
+            <h1 className="text-headline-md" style={{ color: 'var(--on-surface)', margin: 0, lineHeight: 1.2, minWidth: 0, wordBreak: 'break-word' }}>{debate.title}</h1>
+            {debate.description && (
+              <p className="text-caption" style={{ color: 'var(--on-surface-variant)', marginTop: 6, wordBreak: 'break-word' }}>{debate.description}</p>
+            )}
           </div>
-          <div className="badge-live">
+          <div className="badge-live" style={{ flexShrink: 0 }}>
             <div className="pulse-dot" />
             LIVE SPECTATOR VIEW
           </div>
         </header>
 
-        <div style={{ padding: 24, flex: 1, display: 'flex', flexDirection: 'column', gap: 24, minHeight: 0 }}>
+        <div style={{ padding: 24, flex: 1, display: 'flex', flexDirection: 'column', gap: 24, minHeight: 0, overflow: 'hidden' }}>
           <div style={{ 
             display: 'grid', 
             gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
@@ -142,7 +144,8 @@ export default function PublicDebatePage() {
                     borderRadius: 20,
                     overflow: 'hidden',
                     background: sc.bg,
-                    borderColor: sc.border
+                    borderColor: sc.border,
+                    height: '100%'
                   }}
                 >
                   <div style={{ 

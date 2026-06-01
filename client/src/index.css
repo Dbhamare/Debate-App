@@ -221,11 +221,14 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 
 .rhetoric-topbar {
-  height: 80px;
-  padding: 0 32px;
+  min-height: 80px;
+  height: auto;
+  padding: 12px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -871,8 +874,9 @@ body {
   .rhetoric-sidebar { transform: translateX(-100%); }
   .rhetoric-main { margin-left: 0; }
   .rhetoric-topbar {
-    padding: 0 16px;
-    height: 64px;
+    padding: 10px 16px;
+    min-height: 64px;
+    height: auto;
   }
   .text-display-xl { font-size: 32px; }
   .text-headline-lg { font-size: 24px; }
@@ -898,8 +902,9 @@ body {
   .debate-card { padding: 16px; }
   .session-item { padding: 16px; gap: 12px; flex-direction: column; align-items: flex-start; }
   .rhetoric-topbar {
-    height: 56px;
-    padding: 0 12px;
+    min-height: 56px;
+    height: auto;
+    padding: 8px 12px;
   }
   .vote-button { padding: 6px 14px; font-size: 11px; }
   .arena-message { padding: 10px 12px; }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import QRCode from 'react-qr-code';
 import api from '../services/api';
@@ -78,6 +78,7 @@ export default function InstructorDashboard() {
   const [toast, setToast] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, joincode: '' });
   const navigate = useNavigate();
+  const location = useLocation();
   const user = (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })();
 
   const showToast = (message, type = 'success') => {
@@ -86,6 +87,18 @@ export default function InstructorDashboard() {
   };
 
   useEffect(() => { fetchDebates(); }, []);
+
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.substring(1);
+      const element = document.getElementById(id);
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    }
+  }, [location.hash, loading]);
 
   const fetchDebates = async () => {
     try {
@@ -120,18 +133,18 @@ export default function InstructorDashboard() {
   const totalParticipants = debates.reduce((acc, d) => acc + (d.participantCount || 0), 0);
 
   return (
-    <div className="page-transition" style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
+    <div className="page-transition" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--background)' }}>
       <div className="ambient-bg"><div className="blob-1" /><div className="blob-2" /></div>
       <Sidebar user={user} />
 
-      <div className="rhetoric-main" style={{ position: 'relative', zIndex: 1 }}>
+      <div className="rhetoric-main" style={{ position: 'relative', zIndex: 1, height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {/* Topbar */}
         <header className="rhetoric-topbar">
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
             <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 20, fontWeight: 700,
-              color: 'var(--on-surface)', letterSpacing: '-0.01em' }}>Instructor Dashboard</span>
+              color: 'var(--on-surface)', letterSpacing: '-0.01em', display: 'block', lineHeight: 1.2 }}>Instructor Dashboard</span>
           </div>
-          <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
             <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
               className="btn-primary" onClick={() => navigate('/instructor/create-debate')}>
               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add</span>
@@ -140,7 +153,7 @@ export default function InstructorDashboard() {
           </div>
         </header>
 
-        <main style={{ flex: 1, padding: '40px 32px', position: 'relative' }}>
+        <main style={{ flex: 1, padding: '40px 32px', position: 'relative', overflowY: 'auto', minHeight: 0 }}>
           {/* Hero section */}
           <motion.section
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -198,7 +211,7 @@ export default function InstructorDashboard() {
           </motion.div>
 
           {/* Session Management */}
-          <div>
+          <div id="manage" style={{ scrollMarginTop: 100 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 26, fontWeight: 700,
                 color: 'var(--on-surface)', letterSpacing: '-0.01em' }}>Session Management</h2>

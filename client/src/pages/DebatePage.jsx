@@ -9,6 +9,36 @@ import Sidebar from '../components/Sidebar';
 import { format } from 'date-fns';
 
 const SCORE = { like: 1, dislike: -1, upvote: 2, downvote: -2 };
+const BODY_TRUNCATE = 220;
+
+const sideColors = {
+  proponent: {
+    bg: 'rgba(136,169,146,0.15)',
+    border: 'rgba(56,189,248,0.2)',
+    text: '#d7e9dc',
+    accent: '#38bdf8',
+  },
+  neutral: {
+    bg: 'rgba(142,166,191,0.06)',
+    border: 'rgba(142,166,191,0.25)',
+    text: '#dce8f5',
+    accent: '#bcc7de',
+  },
+  opponent: {
+    bg: 'rgba(181,141,149,0.12)',
+    border: 'rgba(255,69,58,0.2)',
+    text: '#f0dde1',
+    accent: '#ff453a',
+  },
+};
+
+const authorColors = {
+  proponent: sideColors.proponent,
+  opponent: sideColors.opponent,
+  instructor: sideColors.neutral,
+};
+
+const DebateContext = React.createContext(null);
 
 function computeSideTallies(messages, side) {
   const sideMsgs = messages.filter((m) => m.side === side);
@@ -58,7 +88,6 @@ export default function DebatePage() {
     setEditDrafts((p) => ({ ...p, [id]: val }));
   }, []);
 
-  const BODY_TRUNCATE = 220;
   const INITIAL_COMMENTS = 3;
   const COMMENTS_STEP = 5;
 
@@ -83,31 +112,6 @@ export default function DebatePage() {
 
   const sides = ['proponent', 'neutral', 'opponent'];
   const sideLabel = { proponent: 'Proponent', neutral: 'Neutral', opponent: 'Opponent' };
-  const sideColors = {
-    proponent: {
-      bg: 'rgba(136,169,146,0.15)',
-      border: 'rgba(56,189,248,0.2)',
-      text: '#d7e9dc',
-      accent: '#38bdf8',
-    },
-    neutral: {
-      bg: 'rgba(142,166,191,0.1)',
-      border: 'rgba(255,255,255,0.08)',
-      text: '#dce8f5',
-      accent: 'rgba(142,166,191,0.5)',
-    },
-    opponent: {
-      bg: 'rgba(181,141,149,0.12)',
-      border: 'rgba(255,69,58,0.2)',
-      text: '#f0dde1',
-      accent: '#ff453a',
-    },
-  };
-  const authorColors = {
-    proponent: sideColors.proponent,
-    opponent: sideColors.opponent,
-    instructor: sideColors.neutral,
-  };
 
   const getAuthorBucket = (msg, debate) => {
     const uid = Number(msg?.senderID);
@@ -225,7 +229,20 @@ export default function DebatePage() {
     socket.emit('joinDebate', { joincode: Number(joincode) }, () => {});
 
     const onNew = (msg) => {
-      setMessages((prev) => (prev.find((m) => m._id === msg._id) ? prev : [...prev, msg]));
+      setMessages((prev) => {
+        const cleaned = prev.filter(
+          (m) =>
+            !(
+              m.isOptimistic &&
+              m.content === msg.content &&
+              Number(m.senderID) === Number(msg.senderID) &&
+              m.side === msg.side &&
+              String(m.replyTo || '') === String(msg.replyTo || '')
+            )
+        );
+        if (cleaned.find((m) => m._id === msg._id)) return cleaned;
+        return [...cleaned, msg];
+      });
       if (currentUser && Number(msg.senderID) === Number(currentUser.userID)) {
         setExpandedBodies((p) => ({ ...p, [String(msg._id)]: true }));
         if (msg.replyTo) {
@@ -293,21 +310,53 @@ export default function DebatePage() {
     setInputs((p) => ({ ...p, [side]: value }));
   };
 
+  const addOptimisticMessage = (content, side, replyTo = null, isAnonymous = false) => {
+    const tempId = `optimistic-${Date.now()}-${Math.random()}`;
+    const optMsg = {
+      _id: tempId,
+      joincode: Number(joincode),
+      content,
+      side,
+      replyTo,
+      senderID: currentUser?.userID,
+      senderName: isAnonymous ? 'Anonymous' : (currentUser?.name || 'Anonymous'),
+      isAnonymous,
+      createdAt: new Date().toISOString(),
+      isOptimistic: true,
+      likes: [],
+      dislikes: [],
+      upvotes: [],
+      downvotes: [],
+    };
+    setMessages((prev) => [...prev, optMsg]);
+    setTimeout(() => scrollToBottom(side || 'neutral'), 30);
+    return tempId;
+  };
+
+  const removeOptimisticMessage = (tempId) => {
+    setMessages((prev) => prev.filter((m) => m._id !== tempId));
+  };
+
   const sendMessage = async (side) => {
     if (guardIfClosed()) return;
     const content = inputs[side].trim();
     if (!content || !canPost(side)) return;
 
+    const isAnon = !!anonBySide[side];
+    const tempId = addOptimisticMessage(content, side, null, isAnon);
+    setInputs((p) => ({ ...p, [side]: '' }));
+
     try {
       await api.post(
         '/messages',
-        { debate: joincode, content, side, isAnonymous: !!anonBySide[side] },
+        { debate: joincode, content, side, isAnonymous: isAnon },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      setInputs((p) => ({ ...p, [side]: '' }));
-      setTimeout(() => scrollToBottom(side), 30);
     } catch (err) {
       console.error('Failed to send message:', err);
+      removeOptimisticMessage(tempId);
+      setInputs((p) => ({ ...p, [side]: content }));
+      setToast({ open: true, severity: 'error', message: 'Failed to transmit argument. Please try again.' });
     }
   };
 
@@ -343,16 +392,20 @@ export default function DebatePage() {
     const trimmed = (content || '').trim();
     if (!trimmed) return;
 
+    const isAnon = !!replyAnon;
+    const tempId = addOptimisticMessage(trimmed, side, id, isAnon);
+    setReplyTarget(null);
+
     try {
       await api.post(
         `/messages/${id}/reply`,
-        { content: trimmed, side, isAnonymous: !!replyAnon },
+        { content: trimmed, side, isAnonymous: isAnon },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-
-      setReplyTarget(null);
     } catch (err) {
       console.error('Failed to reply:', err);
+      removeOptimisticMessage(tempId);
+      setToast({ open: true, severity: 'error', message: 'Failed to transmit reply. Please try again.' });
     }
   };
 
@@ -534,207 +587,43 @@ export default function DebatePage() {
     }
   };
 
-  const MessageItem = React.memo(function MessageItem({ msg, depth = 0, sideKey }) {
-    const [localReply, setLocalReply] = React.useState('');
-const [localEdit, setLocalEdit] = React.useState('');
-
-    useEffect(() => {
-      if (editTarget && editTarget.id === msg._id) {
-        setLocalEdit(msg.content || '');
-      }
-    }, [editTarget, msg._id, msg.content]);
-
-    const kids = getChildren(msg._id);
-    const open = isCommentsOpen(msg._id);
-    const limit = visibleCommentsCount(msg._id);
-    const longBody = (msg.content || '').length > BODY_TRUNCATE;
-    const expanded = isBodyExpanded(msg._id);
-    const bucket = getAuthorBucket(msg, debate);
-    const colors = authorColors[bucket] || sideColors[sideKey];
-
-    return (
-      <div 
-        ref={el => { if (el) messageRefs.current[msg._id] = el; }}
-        className="page-transition"
-        style={{ marginBottom: 12, paddingLeft: depth > 0 ? 16 : 0 }}
-      >
-        <div 
-          className="arena-message" 
-          style={{ borderColor: colors.border, color: colors.text }}
-        >
-          {/* Reply-to reference */}
-          {msg.replyTo && messageById[msg.replyTo] && (
-            <button 
-              className="action-pill"
-              onClick={() => scrollToMessage(msg.replyTo)}
-              style={{ marginBottom: 10, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', background: 'rgba(255,255,255,0.03)' }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>shortcut</span>
-              {messageById[msg.replyTo].senderName || 'Anonymous'}: "{messageById[msg.replyTo].content?.slice(0, 40)}..."
-            </button>
-          )}
-
-          {/* Header */}
-          <div className="message-meta">
-            {msg.isAnonymous ? (
-              <span className="message-sender" style={{ color: colors.text, opacity: 0.8 }}>Anonymous Agent</span>
-            ) : (
-              <span 
-                className="message-sender" 
-                style={{ color: colors.accent || colors.text }}
-                onClick={() => openProfile(msg.senderID)}
-              >
-                {msg.senderName || msg.sender?.name || 'Unknown'}
-              </span>
-            )}
-            {msg.pinned && (
-              <span className="badge-primary" style={{ fontSize: 9, padding: '2px 6px' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>push_pin</span>
-                PINNED
-              </span>
-            )}
-            <div style={{ flex: 1 }} />
-            <button className="action-pill" onClick={e => openMenu(e, msg)}>
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>more_horiz</span>
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="message-content" style={{ color: colors.text }}>
-            {longBody && !expanded ? `${msg.content.slice(0, BODY_TRUNCATE)}…` : msg.content}
-            {longBody && (
-              <button 
-                onClick={() => toggleBodyExpand(msg._id)} 
-                className="action-pill"
-                style={{ marginLeft: 8, color: colors.accent || 'var(--primary)', padding: 0 }}
-              >
-                {expanded ? 'collapse' : 'expand'}
-              </button>
-            )}
-          </div>
-
-          {/* Edit inline */}
-          {editTarget && editTarget.id === msg._id && (
-            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <textarea 
-                id={`inline-edit-${msg._id}`} 
-                className="rhetoric-input"
-                style={{ padding: '8px 12px', minHeight: 80 }}
-                value={localEdit} 
-                onChange={e => setLocalEdit(e.target.value)}
-                disabled={!canPost(editTarget.side)} 
-              />
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button className="btn-ghost" onClick={cancelEdit}>Cancel</button>
-                <button 
-                  className="btn-primary" 
-                  style={{ padding: '8px 16px' }}
-                  onClick={() => sendEdit({ id: msg._id, side: editTarget.side, content: localEdit })}
-                >
-                  Save Changes
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Footer Meta */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-            <span style={{ color: colors.text, opacity: 0.3, fontSize: 10, letterSpacing: '0.02em' }}>
-              {format(new Date(msg.createdAt), 'hh:mm a · MMM dd')}
-            </span>
-            {msg.editedAt && <span className="badge-neutral" style={{ fontSize: 9, padding: '2px 6px' }}>EDITED</span>}
-          </div>
-
-          {/* Reactions */}
-          <div className="message-actions">
-            {[
-              { key: 'like', icon: 'favorite', active: hasLiked(msg), count: msg.likes?.length || 0, fn: () => toggleLike(msg) },
-              { key: 'upvote', icon: 'arrow_upward', active: hasUpvoted(msg), count: msg.upvotes?.length || 0, fn: () => toggleUpvote(msg) },
-              { key: 'downvote', icon: 'arrow_downward', active: hasDisliked(msg), count: msg.dislikes?.length || 0, fn: () => toggleDislike(msg) },
-              { key: 'downvote', icon: 'arrow_downward', active: hasDownvoted(msg), count: msg.downvotes?.length || 0, fn: () => toggleDownvote(msg) },
-            ].map(r => (
-              <button 
-                key={r.key} 
-                className={`action-pill ${r.active ? 'active' : ''}`}
-                onClick={r.fn}
-                style={{ color: r.active ? colors.accent : undefined }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{r.icon}</span>
-                {r.count > 0 && r.count}
-              </button>
-            ))}
-            <button className="action-pill" onClick={() => startReply(msg)} disabled={readOnly}>
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>chat_bubble</span>
-              Reply
-            </button>
-          </div>
-
-          {/* Reply inline */}
-          {replyTarget && replyTarget.id === msg._id && (
-            <div className="page-transition" style={{ marginTop: 16, padding: 12, background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
-              <textarea 
-                id={`inline-reply-${msg._id}`} 
-                className="rhetoric-input"
-                style={{ padding: '12px', minHeight: 100 }}
-                value={localReply} 
-                onChange={e => setLocalReply(e.target.value)}
-                placeholder={`Replying to ${replyTarget.senderName}...`}
-              />
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
-                <label className="text-caption" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: 'rgba(255,255,255,0.4)' }}>
-                  <input type="checkbox" checked={replyAnon} onChange={e => setReplyAnon(e.target.checked)} style={{ accentColor: 'var(--primary)' }} />
-                  Post Anonymously
-                </label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn-ghost" onClick={cancelReply}>Cancel</button>
-                  <button 
-                    className="btn-primary"
-                    style={{ padding: '8px 20px' }}
-                    disabled={!localReply.trim()}
-                    onClick={() => sendReply({ id: msg._id, side: replyTarget.side, content: localReply })}
-                  >
-                    Deploy Reply
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Thread comments */}
-        {kids.length > 0 && (
-          <div style={{ marginTop: 6, paddingLeft: 12 }}>
-            {!open ? (
-              <button 
-                className="action-pill" 
-                onClick={() => openCommentsFor(msg._id)}
-                style={{ color: colors.accent || 'var(--primary)', fontWeight: 800 }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>expand_more</span>
-                VIEW {kids.length} RESPONSES
-              </button>
-            ) : (
-              <div style={{ borderLeft: `1px solid ${colors.border}`, paddingLeft: 12, marginTop: 12 }}>
-                {kids.slice(0, limit).map(child => (
-                  <MessageItem key={child._id} msg={child} depth={depth + 1} sideKey={sideKey} />
-                ))}
-                <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-                  {limit < kids.length && (
-                    <button className="action-pill" onClick={() => showMoreCommentsFor(msg._id)}>
-                      Load more replies
-                    </button>
-                  )}
-                  <button className="action-pill" onClick={() => hideCommentsFor(msg._id)}>
-                    Collapse thread
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  });
+  const contextValue = {
+    debate,
+    messageById,
+    getChildren,
+    isCommentsOpen,
+    visibleCommentsCount,
+    openCommentsFor,
+    showMoreCommentsFor,
+    hideCommentsFor,
+    isBodyExpanded,
+    toggleBodyExpand,
+    getAuthorBucket,
+    messageRefs,
+    scrollToMessage,
+    openProfile,
+    openMenu,
+    editTarget,
+    cancelEdit,
+    sendEdit,
+    replyTarget,
+    replyAnon,
+    setReplyAnon,
+    cancelReply,
+    sendReply,
+    readOnly,
+    startReply,
+    startEdit,
+    hasLiked,
+    hasUpvoted,
+    hasDisliked,
+    hasDownvoted,
+    toggleLike,
+    toggleUpvote,
+    toggleDislike,
+    toggleDownvote,
+    canPost,
+  };
 
   if (!debate) {
     return (
@@ -755,31 +644,34 @@ const [localEdit, setLocalEdit] = React.useState('');
   const assignedSide = !isInstructorOwner ? getAssignedSide() : null;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--background)' }}>
+    <DebateContext.Provider value={contextValue}>
+      <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--background)' }}>
       <div className="ambient-bg"><div className="blob-1" /><div className="blob-2" /></div>
       <Sidebar user={currentUser} />
       
-      <div className="rhetoric-main page-transition" style={{ position: 'relative', zIndex: 1 }}>
+      <div className="rhetoric-main page-transition" style={{ position: 'relative', zIndex: 1, height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <header className="rhetoric-topbar">
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <h1 className="text-headline-md" style={{ color: 'var(--on-surface)', margin: 0 }}>
+          <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+              <h1 className="text-headline-md" style={{ color: 'var(--on-surface)', margin: 0, lineHeight: 1.2, minWidth: 0, wordBreak: 'break-word' }}>
                 {debate.title}
               </h1>
-              <div className="badge-neutral">{isPublic ? 'PUBLIC' : 'CONFIDENTIAL'}</div>
-              <div className={`badge-${debate.status === 'active' ? 'live' : 'neutral'}`}>
-                {debate.status === 'active' && <div className="pulse-dot" />}
-                {debate.status.toUpperCase()}
+              <div style={{ display: 'flex', gap: 8, marginTop: 4, flexShrink: 0 }}>
+                <div className="badge-neutral">{isPublic ? 'PUBLIC' : 'CONFIDENTIAL'}</div>
+                <div className={`badge-${debate.status === 'active' ? 'live' : 'neutral'}`}>
+                  {debate.status === 'active' && <div className="pulse-dot" />}
+                  {debate.status.toUpperCase()}
+                </div>
               </div>
             </div>
             {debate.description && (
-              <p className="text-caption" style={{ color: 'var(--on-surface-variant)', marginTop: 4 }}>
+              <p className="text-caption" style={{ color: 'var(--on-surface-variant)', marginTop: 6, wordBreak: 'break-word' }}>
                 {debate.description}
               </p>
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
             <button 
               className={`vote-button ${myVote === 'proponent' ? 'active' : ''}`}
               onClick={() => castVote('proponent')} 
@@ -843,20 +735,22 @@ const [localEdit, setLocalEdit] = React.useState('');
         </AnimatePresence>
 
         {/* Tactical Feed */}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', height: 'calc(100vh - 160px)' }}>
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', minHeight: 0 }}>
           {sides.map(sideKey => {
             const topLevel = messages.filter(m => m.side === sideKey && !m.replyTo).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
             const sc = sideColors[sideKey];
             const isActiveSide = assignedSide === sideKey;
 
             return (
-              <div key={sideKey} style={{ display: 'flex', flexDirection: 'column', background: 'var(--background)', position: 'relative' }}>
+              <div key={sideKey} style={{ display: 'flex', flexDirection: 'column', background: 'var(--background)', position: 'relative', height: '100%', overflow: 'hidden' }}>
                 <div style={{ padding: '16px 20px', borderBottom: `1px solid ${sc.border}`, display: 'flex', alignItems: 'center', gap: 10, background: sc.bg }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: sc.accent }} />
                   <span className="text-label-bold" style={{ color: sc.text, textTransform: 'uppercase' }}>{sideLabel[sideKey]}</span>
                   {isActiveSide && <span className="badge-primary" style={{ fontSize: 10 }}>YOUR STATION</span>}
                   <div style={{ flex: 1 }} />
-                  <span className="text-caption" style={{ opacity: 0.4 }}>{topLevel.length}</span>
+                  <span style={{ fontSize: '18px', fontWeight: 800, color: sc.accent || sc.text, letterSpacing: '0.02em' }}>
+                    {computeSideTallies(messages, sideKey).points} pts
+                  </span>
                 </div>
 
                 <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -942,39 +836,117 @@ const [localEdit, setLocalEdit] = React.useState('');
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.85)', backdropFilter: 'blur(12px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
             <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-              className="glass-panel" style={{ padding: 48, borderRadius: 32, maxWidth: 800, width: '100%', position: 'relative' }}>
-              <button onClick={() => setResultsOpen(false)} style={{ position: 'absolute', top: 24, right: 24, background: 'none', border: 'none', color: 'var(--on-surface-variant)', cursor: 'pointer' }}>
+              className="glass-panel" style={{ padding: '36px 40px', borderRadius: 32, maxWidth: 800, width: '100%', maxHeight: '90vh', overflowY: 'auto', position: 'relative', display: 'flex', flexDirection: 'column', gap: 24 }}>
+              <button onClick={() => setResultsOpen(false)} style={{ position: 'absolute', top: 24, right: 24, background: 'none', border: 'none', color: 'var(--on-surface-variant)', cursor: 'pointer', zIndex: 10 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 32 }}>close</span>
               </button>
               
-              <div style={{ textAlign: 'center', marginBottom: 48 }}>
-                <h2 className="text-display-xl" style={{ marginBottom: 16 }}>ARENA SUMMARY</h2>
+              <div style={{ textAlign: 'center', marginBottom: 8 }}>
+                <h2 className="text-display-md" style={{ marginBottom: 12, fontFamily: 'Space Grotesk, sans-serif', fontWeight: 800 }}>ARENA SUMMARY</h2>
                 <div style={{ height: 2, width: 80, background: 'var(--primary)', margin: '0 auto' }} />
               </div>
 
               {!results ? <div className="rhetoric-loader"><div className="spinner" /></div> : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-                  <div className="glass-card" style={{ padding: 32, borderRadius: 24, textAlign: 'center', background: 'rgba(56,189,248,0.05)' }}>
-                    <p className="text-label-bold" style={{ color: 'var(--primary)', marginBottom: 8 }}>PREVAILING PERSPECTIVE</p>
-                    <h3 className="text-headline-lg" style={{ fontSize: 48 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+                  <div className="glass-card" style={{ padding: 24, borderRadius: 24, textAlign: 'center', background: 'rgba(56,189,248,0.05)', border: '1px solid rgba(56,189,248,0.15)' }}>
+                    <p className="text-label-bold" style={{ color: 'var(--primary)', marginBottom: 8, fontSize: 12, letterSpacing: '0.1em' }}>PREVAILING PERSPECTIVE</p>
+                    <h3 className="text-headline-lg" style={{ fontSize: 36, fontFamily: 'Space Grotesk, sans-serif', fontWeight: 900 }}>
                       {results.winner === 'draw' ? 'STALEMATE' : results.winner.toUpperCase()}
                     </h3>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-                    <div className="stat-card">
-                      <p className="text-caption">PROPONENT VOTES</p>
-                      <h4 className="text-headline-lg" style={{ fontSize: 40 }}>{results.votes?.proponent ?? 0}</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                    <div className="stat-card" style={{ background: 'rgba(255,255,255,0.02)', padding: '20px 24px', borderRadius: 20 }}>
+                      <p className="text-caption" style={{ color: 'var(--on-surface-variant)', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em' }}>PROPONENT VOTES</p>
+                      <h4 className="text-headline-lg" style={{ fontSize: 32, margin: '8px 0 0' }}>{results.votes?.proponent ?? 0}</h4>
                       <div className="glow-blob" />
                     </div>
-                    <div className="stat-card">
-                      <p className="text-caption">OPPONENT VOTES</p>
-                      <h4 className="text-headline-lg" style={{ fontSize: 40, color: '#ff97a3' }}>{results.votes?.opponent ?? 0}</h4>
+                    <div className="stat-card" style={{ background: 'rgba(255,255,255,0.02)', padding: '20px 24px', borderRadius: 20 }}>
+                      <p className="text-caption" style={{ color: 'var(--on-surface-variant)', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em' }}>OPPONENT VOTES</p>
+                      <h4 className="text-headline-lg" style={{ fontSize: 32, color: '#ff97a3', margin: '8px 0 0' }}>{results.votes?.opponent ?? 0}</h4>
                       <div className="glow-blob" style={{ background: 'rgba(255,151,163,0.1)' }} />
                     </div>
                   </div>
 
-                  <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setResultsOpen(false)}>Acknowledged</button>
+                  {/* Side-by-Side Performance Analytics */}
+                  <div>
+                    <h4 className="text-label-bold" style={{ color: 'var(--primary)', marginBottom: 12, letterSpacing: '0.08em', fontSize: 12 }}>SIDE PERFORMANCE</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+                      {['proponent', 'opponent', 'neutral'].map(side => {
+                        const tally = results.tallies?.[side] || { likes: 0, dislikes: 0, upvotes: 0, downvotes: 0, points: 0 };
+                        const color = side === 'proponent' ? 'var(--primary)' : side === 'opponent' ? '#ff97a3' : 'rgba(255,255,255,0.5)';
+                        const borderCol = side === 'proponent' ? 'rgba(56,189,248,0.15)' : side === 'opponent' ? 'rgba(255,151,163,0.15)' : 'rgba(255,255,255,0.05)';
+                        return (
+                          <div key={side} className="glass-card" style={{ padding: 16, borderRadius: 20, border: `1px solid ${borderCol}`, background: 'rgba(255, 255, 255, 0.01)' }}>
+                            <div style={{ fontWeight: 800, color, textTransform: 'uppercase', fontSize: 12, letterSpacing: '0.05em', marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span>{side}</span>
+                              <span style={{ fontSize: 14, color: '#fff' }}>{tally.points} pts</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: 'var(--on-surface-variant)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Likes</span>
+                                <span style={{ color: '#fff', fontWeight: 600 }}>{tally.likes}</span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Dislikes</span>
+                                <span style={{ color: '#fff', fontWeight: 600 }}>{tally.dislikes}</span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Upvotes</span>
+                                <span style={{ color: '#fff', fontWeight: 600 }}>{tally.upvotes}</span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Downvotes</span>
+                                <span style={{ color: '#fff', fontWeight: 600 }}>{tally.downvotes}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Tactical Highlights / Top Comments */}
+                  {(results.mostLiked || results.mostUpvoted || results.mostDisliked || results.mostDownvoted) && (
+                    <div>
+                      <h4 className="text-label-bold" style={{ color: 'var(--primary)', marginBottom: 12, letterSpacing: '0.08em', fontSize: 12 }}>TACTICAL HIGHLIGHTS</h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {[
+                          { title: 'Most Liked Argument', data: results.mostLiked, icon: 'favorite', iconColor: 'var(--primary)', countKey: 'likes', suffix: 'likes' },
+                          { title: 'Most Upvoted Argument', data: results.mostUpvoted, icon: 'thumb_up', iconColor: 'var(--primary)', countKey: 'upvotes', suffix: 'upvotes' },
+                          { title: 'Most Disliked Argument', data: results.mostDisliked, icon: 'heart_broken', iconColor: '#ff97a3', countKey: 'dislikes', suffix: 'dislikes' },
+                          { title: 'Most Downvoted Argument', data: results.mostDownvoted, icon: 'thumb_down', iconColor: '#ff97a3', countKey: 'downvotes', suffix: 'downvotes' },
+                        ].filter(item => item.data && (item.data[item.countKey] ?? 0) > 0).map((highlight, idx) => {
+                          const side = highlight.data.side;
+                          const sideColor = side === 'proponent' ? 'var(--primary)' : side === 'opponent' ? '#ff97a3' : 'rgba(255,255,255,0.5)';
+                          return (
+                            <div key={idx} className="glass-card" style={{ padding: '16px 20px', borderRadius: 16, display: 'flex', gap: 16, alignItems: 'flex-start', background: 'rgba(255, 255, 255, 0.01)' }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: 22, color: highlight.iconColor, background: 'rgba(255,255,255,0.03)', padding: 8, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {highlight.icon}
+                              </span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                  <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--on-surface)' }}>{highlight.title}</span>
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: sideColor, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{side}</span>
+                                </div>
+                                <p style={{ fontSize: 13, color: 'var(--on-surface-variant)', lineHeight: 1.5, margin: '0 0 8px', fontStyle: 'italic', wordBreak: 'break-word' }}>
+                                  "{highlight.data.content}"
+                                </p>
+                                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span>Sender: {highlight.data.senderName || 'Anonymous'}</span>
+                                  <span style={{ color: highlight.iconColor, fontWeight: 700 }}>
+                                    {highlight.data[highlight.countKey]} {highlight.suffix}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', borderRadius: 12, padding: '12px 24px' }} onClick={() => setResultsOpen(false)}>Acknowledged</button>
                 </div>
               )}
             </motion.div>
@@ -993,6 +965,258 @@ const [localEdit, setLocalEdit] = React.useState('');
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+      </div>
+    </DebateContext.Provider>
   );
 }
+
+const MessageItem = React.memo(function MessageItem({ msg, depth = 0, sideKey }) {
+  const context = React.useContext(DebateContext);
+  if (!context) return null;
+  const {
+    debate,
+    messageById,
+    getChildren,
+    isCommentsOpen,
+    visibleCommentsCount,
+    openCommentsFor,
+    showMoreCommentsFor,
+    hideCommentsFor,
+    isBodyExpanded,
+    toggleBodyExpand,
+    getAuthorBucket,
+    messageRefs,
+    scrollToMessage,
+    openProfile,
+    openMenu,
+    editTarget,
+    cancelEdit,
+    sendEdit,
+    replyTarget,
+    replyAnon,
+    setReplyAnon,
+    cancelReply,
+    sendReply,
+    readOnly,
+    startReply,
+    startEdit,
+    hasLiked,
+    hasUpvoted,
+    hasDisliked,
+    hasDownvoted,
+    toggleLike,
+    toggleUpvote,
+    toggleDislike,
+    toggleDownvote,
+    canPost
+  } = context;
+
+  const [localReply, setLocalReply] = React.useState('');
+  const [localEdit, setLocalEdit] = React.useState('');
+
+  useEffect(() => {
+    if (editTarget && editTarget.id === msg._id) {
+      setLocalEdit(msg.content || '');
+    }
+  }, [editTarget, msg._id, msg.content]);
+
+  const kids = getChildren(msg._id);
+  const open = isCommentsOpen(msg._id);
+  const limit = visibleCommentsCount(msg._id);
+  const longBody = (msg.content || '').length > BODY_TRUNCATE;
+  const expanded = isBodyExpanded(msg._id);
+  const bucket = getAuthorBucket(msg, debate);
+  const colors = authorColors[bucket] || sideColors[sideKey];
+
+  return (
+    <div 
+      ref={el => { if (el) messageRefs.current[msg._id] = el; }}
+      className="page-transition"
+      style={{ marginBottom: 12, paddingLeft: depth > 0 ? 16 : 0, opacity: msg.isOptimistic ? 0.65 : 1 }}
+    >
+      <div 
+        className="arena-message" 
+        style={{ borderColor: colors.border, color: colors.text }}
+      >
+        {/* Reply-to reference */}
+        {msg.replyTo && messageById[msg.replyTo] && (
+          <button 
+            className="action-pill"
+            onClick={() => scrollToMessage(msg.replyTo)}
+            style={{ marginBottom: 10, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', background: 'rgba(255,255,255,0.03)' }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>shortcut</span>
+            {messageById[msg.replyTo].senderName || 'Anonymous'}: "{messageById[msg.replyTo].content?.slice(0, 40)}..."
+          </button>
+        )}
+
+        {/* Header */}
+        <div className="message-meta">
+          {msg.isAnonymous ? (
+            <span className="message-sender" style={{ color: colors.text, opacity: 0.8 }}>Anonymous Agent</span>
+          ) : (
+            <span 
+              className="message-sender" 
+              style={{ color: colors.accent || colors.text }}
+              onClick={() => openProfile(msg.senderID)}
+            >
+              {msg.senderName || msg.sender?.name || 'Unknown'}
+            </span>
+          )}
+          {msg.pinned && (
+            <span className="badge-primary" style={{ fontSize: 9, padding: '2px 6px' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>push_pin</span>
+              PINNED
+            </span>
+          )}
+          <div style={{ flex: 1 }} />
+          {!msg.isOptimistic && (
+            <button className="action-pill" onClick={e => openMenu(e, msg)}>
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>more_horiz</span>
+            </button>
+          )}
+        </div>
+
+        {/* Body */}
+        <div className="message-content" style={{ color: colors.text }}>
+          {longBody && !expanded ? `${msg.content.slice(0, BODY_TRUNCATE)}…` : msg.content}
+          {longBody && (
+            <button 
+              onClick={() => toggleBodyExpand(msg._id)} 
+              className="action-pill"
+              style={{ marginLeft: 8, color: colors.accent || 'var(--primary)', padding: 0 }}
+            >
+              {expanded ? 'collapse' : 'expand'}
+            </button>
+          )}
+        </div>
+
+        {/* Edit inline */}
+        {editTarget && editTarget.id === msg._id && (
+          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <textarea 
+              id={`inline-edit-${msg._id}`} 
+              className="rhetoric-input"
+              style={{ padding: '8px 12px', minHeight: 80 }}
+              value={localEdit} 
+              onChange={e => setLocalEdit(e.target.value)}
+              disabled={!canPost(editTarget.side)} 
+            />
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn-ghost" onClick={cancelEdit}>Cancel</button>
+              <button 
+                className="btn-primary" 
+                style={{ padding: '8px 16px' }}
+                onClick={() => sendEdit({ id: msg._id, side: editTarget.side, content: localEdit })}
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Footer Meta */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+          <span style={{ color: colors.text, opacity: 0.3, fontSize: 10, letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: 4 }}>
+            {format(new Date(msg.createdAt), 'hh:mm a · MMM dd')}
+            {msg.isOptimistic && (
+              <span className="material-symbols-outlined" style={{ fontSize: 12, animation: 'spin 1.5s linear infinite' }}>
+                sync
+              </span>
+            )}
+          </span>
+          {msg.editedAt && <span className="badge-neutral" style={{ fontSize: 9, padding: '2px 6px' }}>EDITED</span>}
+        </div>
+
+        {/* Reactions */}
+        {!msg.isOptimistic && (
+          <div className="message-actions">
+            {[
+              { key: 'like', icon: 'favorite', active: hasLiked(msg), count: msg.likes?.length || 0, fn: () => toggleLike(msg) },
+              { key: 'upvote', icon: 'arrow_upward', active: hasUpvoted(msg), count: msg.upvotes?.length || 0, fn: () => toggleUpvote(msg) },
+              { key: 'dislike', icon: 'heart_broken', active: hasDisliked(msg), count: msg.dislikes?.length || 0, fn: () => toggleDislike(msg) },
+              { key: 'downvote', icon: 'arrow_downward', active: hasDownvoted(msg), count: msg.downvotes?.length || 0, fn: () => toggleDownvote(msg) },
+            ].map(r => (
+              <button 
+                key={r.key} 
+                className={`action-pill ${r.active ? 'active' : ''}`}
+                onClick={r.fn}
+                style={{ color: r.active ? colors.accent : undefined }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{r.icon}</span>
+                {r.count > 0 && r.count}
+              </button>
+            ))}
+            <button className="action-pill" onClick={() => startReply(msg)} disabled={readOnly}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>chat_bubble</span>
+              Reply
+            </button>
+          </div>
+        )}
+
+        {/* Reply inline */}
+        {replyTarget && replyTarget.id === msg._id && (
+          <div className="page-transition" style={{ marginTop: 16, padding: 12, background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
+            <textarea 
+              id={`inline-reply-${msg._id}`} 
+              className="rhetoric-input"
+              style={{ padding: '12px', minHeight: 100 }}
+              value={localReply} 
+              onChange={e => setLocalReply(e.target.value)}
+              placeholder={`Replying to ${replyTarget.senderName}...`}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
+              <label className="text-caption" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: 'rgba(255,255,255,0.4)' }}>
+                <input type="checkbox" checked={replyAnon} onChange={e => setReplyAnon(e.target.checked)} style={{ accentColor: 'var(--primary)' }} />
+                Post Anonymously
+              </label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn-ghost" onClick={cancelReply}>Cancel</button>
+                <button 
+                  className="btn-primary"
+                  style={{ padding: '8px 20px' }}
+                  disabled={!localReply.trim()}
+                  onClick={() => sendReply({ id: msg._id, side: replyTarget.side, content: localReply })}
+                >
+                  Deploy Reply
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Thread comments */}
+      {kids.length > 0 && (
+        <div style={{ marginTop: 6, paddingLeft: 12 }}>
+          {!open ? (
+            <button 
+              className="action-pill" 
+              onClick={() => openCommentsFor(msg._id)}
+              style={{ color: colors.accent || 'var(--primary)', fontWeight: 800 }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>expand_more</span>
+              VIEW {kids.length} RESPONSES
+            </button>
+          ) : (
+            <div style={{ borderLeft: `1px solid ${colors.border}`, paddingLeft: 12, marginTop: 12 }}>
+              {kids.slice(0, limit).map(child => (
+                <MessageItem key={child._id} msg={child} depth={depth + 1} sideKey={sideKey} />
+              ))}
+              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                {limit < kids.length && (
+                  <button className="action-pill" onClick={() => showMoreCommentsFor(msg._id)}>
+                    Load more replies
+                  </button>
+                )}
+                <button className="action-pill" onClick={() => hideCommentsFor(msg._id)}>
+                  Collapse thread
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});

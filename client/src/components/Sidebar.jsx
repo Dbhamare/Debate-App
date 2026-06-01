@@ -5,22 +5,21 @@ const studentNavLinks = [
   { icon: 'dashboard', label: 'Dashboard', path: '/dashboard' },
   { icon: 'forum', label: 'My Debates', path: '/debates' },
   { icon: 'person', label: 'Profile', path: '/profile' },
-  { icon: 'search', label: 'Search', path: '/search' },
 ];
 
 const instructorNavLinks = [
   { icon: 'dashboard', label: 'Dashboard', path: '/instructor/dashboard' },
-  { icon: 'tune', label: 'Manage Debates', path: '/instructor/dashboard' },
+  { icon: 'tune', label: 'Manage Debates', path: '/instructor/dashboard#manage' },
   { icon: 'add_circle', label: 'Create Debate', path: '/instructor/create-debate' },
   { icon: 'person', label: 'Profile', path: '/profile' },
 ];
 
 const adminNavLinks = [
   { icon: 'dashboard', label: 'Dashboard', path: '/admin/dashboard' },
-  { icon: 'group', label: 'User Management', path: '/admin/dashboard' },
-  { icon: 'forum', label: 'All Debates', path: '/admin/dashboard' },
-  { icon: 'analytics', label: 'Analytics', path: '/admin/dashboard' },
-  { icon: 'settings', label: 'Settings', path: '/admin/dashboard' },
+  { icon: 'group', label: 'User Management', path: '/admin/dashboard#users' },
+  { icon: 'forum', label: 'All Debates', path: '/admin/dashboard#debates' },
+  { icon: 'analytics', label: 'Analytics', path: '/admin/dashboard#analytics' },
+  { icon: 'settings', label: 'Settings', path: '/admin/dashboard#settings' },
 ];
 
 export default function Sidebar({ user }) {
@@ -97,7 +96,17 @@ export default function Sidebar({ user }) {
       {/* Nav Links */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {navLinks.map((link, i) => {
-          const isActive = location.pathname === link.path;
+          const isActive = (() => {
+            if (link.path.includes('#')) {
+              const [linkPath, linkHash] = link.path.split('#');
+              return location.pathname === linkPath && location.hash === '#' + linkHash;
+            }
+            if (link.label === 'Manage Debates' && location.pathname.startsWith('/instructor/debate/') && location.pathname.endsWith('/manage')) {
+              return true;
+            }
+            return location.pathname === link.path && !location.hash;
+          })();
+
           return (
             <motion.button
               key={link.path + link.label}
