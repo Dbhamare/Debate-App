@@ -22,7 +22,14 @@ export default function InstructorManageDebate() {
   const [votesLoading, setVotesLoading] = useState(true);
   const [selection, setSelection] = useState({});
   const [toast, setToast] = useState({ open: false, severity: "success", message: "" });
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const currentUser = JSON.parse(localStorage.getItem('user'));
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     fetchDebate();
@@ -301,7 +308,7 @@ export default function InstructorManageDebate() {
             <h1 className="text-headline-md" style={{ color: 'var(--on-surface)', margin: 0, lineHeight: 1.2 }}>Arena Command Center</h1>
             <p className="text-caption" style={{ color: 'var(--on-surface-variant)', marginTop: 4 }}>Debate System Control & Analytics</p>
           </div>
-          <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 12, flexShrink: 0, flexWrap: 'wrap' }}>
              <button className="btn-ghost" onClick={handleExportAnalytics}>
                 <span className="material-symbols-outlined" style={{ fontSize: 18 }}>analytics</span>
                 Export Report
@@ -313,13 +320,13 @@ export default function InstructorManageDebate() {
           </div>
         </header>
 
-        <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 32, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+        <div style={{ padding: isMobile ? '24px 16px' : 32, display: 'flex', flexDirection: 'column', gap: isMobile ? 20 : 32, overflowY: 'auto', flex: 1, minHeight: 0 }}>
           {/* Status & Info */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="glass-panel" 
-            style={{ padding: 32, borderRadius: 24 }}
+            style={{ padding: isMobile ? '24px 20px' : 32, borderRadius: 24 }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' }}>
               <div>
@@ -332,7 +339,7 @@ export default function InstructorManageDebate() {
                 </div>
                 <p className="text-body-md" style={{ color: 'var(--on-surface-variant)', maxWidth: 800 }}>{debate.description}</p>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                  <button className={`btn-ghost ${debate.status === 'upcoming' ? 'active' : ''}`} onClick={() => handleStatusChange('upcoming')}>Upcoming</button>
                  <button className={`btn-primary`} style={{ background: debate.status === 'active' ? 'var(--primary)' : 'rgba(255,255,255,0.05)', color: debate.status === 'active' ? '#0b1326' : 'var(--on-surface)' }} onClick={() => handleStatusChange('active')}>Live Arena</button>
                  <button className={`btn-danger`} onClick={() => handleStatusChange('closed')}>Terminate</button>
@@ -341,13 +348,13 @@ export default function InstructorManageDebate() {
           </motion.div>
 
           {/* User Assignments */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 350px', gap: 24 }}>
             <motion.div 
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
               className="glass-panel" 
-              style={{ padding: 32, borderRadius: 24, overflow: 'hidden' }}
+              style={{ padding: isMobile ? '24px 16px' : 32, borderRadius: 24, overflow: 'hidden' }}
             >
               <h3 className="text-headline-md" style={{ marginBottom: 24 }}>Personnel Deployment</h3>
               <div style={{ overflowX: 'auto' }}>
@@ -391,7 +398,7 @@ export default function InstructorManageDebate() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
               className="glass-card" 
-              style={{ padding: 24, borderRadius: 24, display: 'flex', flexDirection: 'column', gap: 20 }}
+              style={{ padding: isMobile ? 16 : 24, borderRadius: 24, display: 'flex', flexDirection: 'column', gap: 20 }}
             >
               <h3 className="text-label-bold" style={{ textTransform: 'uppercase', color: 'var(--primary)' }}>Active Roster</h3>
               
@@ -433,8 +440,8 @@ export default function InstructorManageDebate() {
              {analyticsLoading ? (
                <div className="rhetoric-loader" style={{ minHeight: 200 }}><div className="spinner" /></div>
              ) : (
-               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: 24 }}>
-                  <motion.div className="glass-panel" style={{ padding: 24, borderRadius: 24, height: 350 }}>
+               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(450px, 1fr))', gap: 24 }}>
+                  <motion.div className="glass-panel" style={{ padding: isMobile ? 16 : 24, borderRadius: 24, height: isMobile ? 300 : 350 }}>
                     <h4 className="text-label-bold" style={{ marginBottom: 16 }}>Participation Distribution</h4>
                     <ResponsiveContainer width="100%" height="85%">
                       <BarChart data={messagesSeries}>
@@ -465,7 +472,7 @@ export default function InstructorManageDebate() {
                     </ResponsiveContainer>
                   </motion.div>
 
-                  <motion.div className="glass-panel" style={{ padding: 24, borderRadius: 24, height: 350 }}>
+                  <motion.div className="glass-panel" style={{ padding: isMobile ? 16 : 24, borderRadius: 24, height: isMobile ? 300 : 350 }}>
                     <h4 className="text-label-bold" style={{ marginBottom: 16 }}>Activity Timeline</h4>
                     <ResponsiveContainer width="100%" height="85%">
                       <AreaChart data={timelineSeries}>
@@ -484,7 +491,7 @@ export default function InstructorManageDebate() {
                     </ResponsiveContainer>
                   </motion.div>
 
-                  <motion.div className="glass-panel" style={{ padding: 24, borderRadius: 24, height: 350 }}>
+                  <motion.div className="glass-panel" style={{ padding: isMobile ? 16 : 24, borderRadius: 24, height: isMobile ? 300 : 350 }}>
                     <h4 className="text-label-bold" style={{ marginBottom: 16 }}>Top Performers</h4>
                     <ResponsiveContainer width="100%" height="85%">
                       <BarChart data={participantsSeries} layout="vertical">
@@ -507,7 +514,7 @@ export default function InstructorManageDebate() {
                     </ResponsiveContainer>
                   </motion.div>
 
-                  <motion.div className="glass-panel" style={{ padding: 24, borderRadius: 24, height: 350 }}>
+                  <motion.div className="glass-panel" style={{ padding: isMobile ? 16 : 24, borderRadius: 24, height: isMobile ? 'auto' : 350 }}>
                     <h4 className="text-label-bold" style={{ marginBottom: 16 }}>Sentiment & Highlights</h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                        {highlights ? (
